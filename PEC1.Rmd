@@ -1,0 +1,1354 @@
+---
+title: 'PEC1'
+author: "Ager Zenzano Sarasola - UOC"
+date: "23 de marzo de 2022"
+output:
+  bookdown::pdf_document2:
+     keep_tex: no #se puede poner yes
+     number_sections: yes
+     toc: False #list of content
+     toc_depth: 3
+     fig_caption: yes
+     fig_height: 3.8
+     fig_width: 6.0
+bibliography: bibliography.bib     
+link-citations: yes
+figurelist: yes
+header-includes:
+- \usepackage{mathrsfs}       # To include mathsrc fonts
+- \usepackage{float}          # To insert figures caption
+- \floatplacement{figure}{H}  # To insert figures caption
+- \floatplacement{table}{H}
+- \usepackage{xcolor}
+- \usepackage{framed}
+- \usepackage{fancyhdr}
+- \pagestyle{fancy}
+- \fancyhf{}
+- \fancyhead[CE,CO]{\leftmark}
+- \fancyfoot[LE,RO]{\thepage}
+- \usepackage[ruled,vlined,linesnumbered]{algorithm2e}
+- \usepackage{amsmath} 
+- \usepackage[format=plain,labelfont={bf,it},labelfont={color=blue},textfont=it]{caption}
+- \usepackage[backend=biber, style=alphabetic, citestyle=authortitle]{biblatex}
+- \usepackage{sectsty}
+- \sectionfont{\clearpage}
+- \usepackage{sectsty} # a pagebreak for every top level heading
+- \sectionfont{\clearpage} #a pagebreak for every top level heading
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message = FALSE)
+```
+
+```{r}
+library(survival)
+library(survminer)
+
+library(stringr)
+library(tidyverse)
+library(ggplot2)
+
+library(data.table)
+library(survMisc)
+library(dplyr)
+
+library(dplyr)
+library(purrr)
+library(tibble)
+library(knitr)
+library(broom)
+library(ggplot2)
+
+
+```
+
+
+
+# Consideremos una distribución de tiempos de vida con la función de densidad $f(t)$ definida por
+
+\begin{equation}\label{eq:ftEj1}
+f(t)=  \left\{
+\begin{array}{ll}
+      0, & t<0 \\
+      \frac{2t}{(1+t^2)^2}, & t \geq 0.
+\end{array} 
+\right.
+\end{equation}
+
+### Comprobad que $f(t)$ es efectivamente una función de densidad. Representad la función.
+
+Para que una función $f(t)$ sea una función de densidad, siendo la vaiable $t$ una variable aleatoria continua, tienen que cumplirse dos condiciones:
+
+\begin{equation}\label{eq:Fcond1}
+  \text{1. }\forall t \in \Re: f(t) \geq 0,
+\end{equation}
+
+\begin{equation}\label{eq:Fcond2}
+  \text{2. }\int_{-\infty}^{+\infty}f(t)dt=1.
+\end{equation}
+
+Al estudiar la primera condición (ver Ecuación $\eqref{eq:Fcond1}$), vemos que para $t \geq 0$, en la primera de la función, $f(t)$ es 0, por lo que cumple la primera condición. Para la segunda parte de la Ecuación $\eqref{eq:ftEj1}$, vemos que para valores positivos de $t$ y cuando $t$ tiende a $+\infty$, el resultado de $f(t)$ será más pequeño y se irá acercando a 0, pero sin que $f(t)$ obtenga valores negativos.
+
+Para verificar la Ecuación $\eqref{eq:Fcond2}$ seguiremos los siguientes pasos:
+
+\begin{equation}\label{eq:Fcond21}
+  \int_{-\infty}^{+\infty}f(t)dt=\int_{-\infty}^{0}f(t)dt+\int_{0}^{+\infty}f(t)dt.
+\end{equation}
+
+Después de separar la integral en dos integrales las calcularemos como dos integrales impropias:
+
+\begin{equation}
+  \int_{-\infty}^{0}f(t)dt = 0
+\end{equation}
+
+\begin{equation}
+  \int_{0}^{+\infty}f(t)dt = \lim_{R\to+\infty}\int_{0}^{R}\frac{2t}{(1+t^2)^2}dt.
+\end{equation}
+
+Hallamos la integral de $f(t)$ para $t \geq 0$, y después calcularemos la integral definida tal que,
+
+\begin{equation}
+  \int\frac{2t}{(1+t^2)^2}dt = 2\int\frac{1}{2u^2}du=2 \frac{1}{2}\int\frac{1}{u^2}du=2\frac{-1}{u}=(-\frac{1}{1+t^2}) = - \frac{1}{1+t^2}+C, \text{ C}\in\mathbb{R}
+\end{equation}
+
+\begin{equation}
+  \int_{0}^{R}\frac{2t}{(1+t^2)^2}dt = - \frac{1}{1+t^2}\Big|_0^R = \left[ -\frac{1}{1+R^2} \right] - \left[-\frac{1}{1+0} \right] = -\frac{1}{1+R^2}+1
+\end{equation}
+
+\begin{equation}
+  \lim_{R\to+\infty}\int_{0}^{R}\frac{2t}{(1+t^2)^2}dt =  \lim_{R\to+\infty}\left(-\frac{1}{1+R^2}+1\right) =1
+\end{equation}
+
+Si verificamos la Ecuación $\eqref{eq:Fcond21}$, quedaría tal que
+
+\begin{equation}
+  \int_{-\infty}^{+\infty}f(t)dt=\int_{-\infty}^{0}f(t)dt+\int_{0}^{+\infty}f(t)dt = 0 + 1 = 1.
+\end{equation}
+
+
+Por tanto, como se cumplen las condiciones expuestas mediante las Ecuaciones $\eqref{eq:Fcond1}$ y $\eqref{eq:Fcond2}$, podemos decir que $f(t)$ es una función de densidad.
+
+En la Figura \@ref(fig:fdensi) representamos la función de distribución $f(t)$ (ver Ecuación $\eqref{eq:ftEj1}$), para valores de $t$ de 0 a 100. En la Tabla \@ref(tab:tej1) vemos un ejemplo de los primero 10 valores del conjunto de datos calculados:
+
+```{r}
+t= seq(0,100,0.1)
+df1 = data.frame(t)
+df1$f = (2*t)/((1+t^2)^2)
+```
+
+
+```{r tej1}
+kable(head(df1,10), booktabs = T, caption = "Diez primero valores de $f(t)$ para t de 0 a 10")
+```
+
+
+
+```{r fdensi, fig.cap = "Función de densidad f(t) para valores de t de 0 a 100.", fig.width=5, fig.height=4}
+pl_f <- ggplot(data=df1) +
+  geom_line(aes(x=t,y=f,color="f(t)")) +
+  scale_color_manual(values = c('f(t)' = 'black')) +
+  labs(x="t", y="f(t)", colour='',fill = "Experimentos") +
+  theme(legend.position="top", plot.title = element_text(size = 10),
+        plot.caption = element_text(size = 8,color = "black", face = "italic"),
+        axis.title = element_text(size = 8), axis.text = element_text(size = 8),
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "grey", size =0.5),
+        axis.ticks.length=unit(-0.1, "cm"),
+        axis.text.x = element_text(margin=unit(c(2,0,0,0),"mm")),
+        axis.text.y = element_text(margin=unit(c(0,2,0,0),"mm")))
+
+pl_f
+```
+
+
+
+### Calculad y representad la función de distribución, $F(t)$, y de supervivencia, $S(t)$.
+ 
+Calculamos la  función de distribución $F(t)$ integrando la función de densidad, f(t) $\eqref{eq:ftEj1}$.
+
+Vemos que a partir de la Ecuación $\eqref{eq:ftEj1}$, para $t < 0$, la función de distribucion es $F(t)=0$, y para $t \geq 0$ la función de distribución, $F(t)$ se puede expresar tal que
+
+\begin{equation}
+  F(T) = P(T\leq t)= \int_{0}^{t}f(u)du = 
+  \int_{0}^{t}\frac{2t}{(1+t^2)^2}dt=- \frac{1}{1+t^2}\Big|_0^t = \left[ -\frac{1}{1+t^2} \right] - \left[-\frac{1}{1+0} \right] = -\frac{1}{1+t^2}+1 = \frac{t^2}{1+t^2}.
+\end{equation}
+
+Si representamos la función de distribución por partes, $F(t)$ de manera completa tiene el siguientes aspecto:
+
+\begin{equation}\label{eq:FtEj1}
+F(t)=  \left\{
+\begin{array}{ll}
+      0, & t<0 \\
+      \frac{t^2}{1+t^2}, & t \geq 0.
+\end{array} 
+\right.
+\end{equation}
+
+Para obtener la función de supervivencia, $S(t)$ haremos uso de la siguiente ecuación [@UPC]: 
+
+\begin{equation}\label{eq:Ft}
+  S(t) = 1-F(t).
+\end{equation}
+
+Por tanto, a partir de la Ecuación $\eqref{eq:Ft}$, para $t < 0$ vemos tenemos que $S(t)=1$ y para $t \geq 0$ la función de supervivencia $S(t)$ se puede expresar tal que
+
+\begin{equation}
+  S(t) =1-F(t)=1-\frac{t^2}{1+t^2}=\frac{1+t^2-t^2}{1+t^2}=\frac{1}{1+t^2},
+\end{equation}
+
+y de manera conjunta la función de supervivencia por partes se puede expresar de la siguiente manera:
+
+\begin{equation}\label{eq:StEj1}
+S(t)=  \left\{
+\begin{array}{ll}
+      1, & t<0 \\
+      \frac{1}{1+t^2}, & t \geq 0.
+\end{array} 
+\right.
+\end{equation}
+
+En la Figura \@ref(fig:fdistri) representamos la función de distribución F(t) y la función de supervivencia $S(t)$.
+
+```{r fdistri, fig.cap = "Función de distribución F(t) y función de supervivencia S(t) para valores de t de 0 a 100.", fig.width=5, fig.height=4}
+
+df1$F_dist = (df1$t^2/(1+df1$t^2))
+df1$S = 1-(df1$t^2/(1+df1$t^2))
+
+pl_FS <- ggplot(data=df1) +
+  geom_line(aes(x=t,F_dist,color="F(t)")) +
+  geom_line(aes(x=t,y=S,color="S(t)")) +
+  scale_color_manual(values = c('F(t)' = 'gray', 'S(t)' = 'darkblue')) +
+  labs(x="t", y="", colour='') +
+  theme(legend.position="top", plot.title = element_text(size = 10),
+        plot.caption = element_text(size = 8,color = "black", face = "italic"),
+        axis.title = element_text(size = 8), axis.text = element_text(size = 8),
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "grey", size =0.5),
+        axis.ticks.length=unit(-0.1, "cm"),
+        axis.text.x = element_text(margin=unit(c(2,0,0,0),"mm")),
+        axis.text.y = element_text(margin=unit(c(0,2,0,0),"mm")))
+
+pl_FS
+```
+
+### Calculad y representad la función de riesgo,  $h(t)$, y la función de riesgo acumulado $H(t)$, 
+
+A continuación, calculamos (ver Ecuación $\eqref{eq:htEj1}$ y $\eqref{eq:htEj11}$) y representamos (ver Figura \@ref(fig:friesgo)) la función de riesgo $h(t)$ [@UPC]:
+
+\begin{equation}\label{eq:htEj1}
+  h(t) = \frac{f(t)}{S(t)} = \frac{\frac{2t}{(1+t^2)^2}}{\frac{1}{1+t^2}} =\frac{2t}{1+t^2}.
+\end{equation}
+
+Ahora representamos la función de riesgo instantáneo por partes, $h(t)$ de manera completa:
+
+\begin{equation}\label{eq:htEj11}
+h(t)=  \left\{
+\begin{array}{ll}
+      0, & t<0 \\
+      \frac{2t}{1+t^2}, & t \geq 0.
+\end{array} 
+\right.
+\end{equation}
+
+```{r friesgo, fig.cap = "Función de riesgo instantáneo h(t) para valores de t de 0 a 100.", fig.width=5, fig.height=4}
+
+df1$h= df1$f/df1$S
+
+# df1$h_check = (2*df1$T)/(1+(df1$T^2))
+# check = df1 %>%
+#         mutate(check=(h-h_check)) %>%
+#         filter(check!=0)  
+
+pl_h <- ggplot(data=df1) +
+  geom_line(aes(x=t,h,color="h(t)")) +
+  scale_color_manual(values = c('h(t)' = 'skyblue')) +
+  labs(x="t", y="h(t)", colour='') +
+  theme(legend.position="top", plot.title = element_text(size = 10),
+        plot.caption = element_text(size = 8,color = "black", face = "italic"),
+        axis.title = element_text(size = 8), axis.text = element_text(size = 8),
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "grey", size =0.5),
+        axis.ticks.length=unit(-0.1, "cm"),
+        axis.text.x = element_text(margin=unit(c(2,0,0,0),"mm")),
+        axis.text.y = element_text(margin=unit(c(0,2,0,0),"mm")))
+
+pl_h
+
+```
+
+Una vez calculada la función de riesgo $h(t)$, calculamos (ver Ecuación $\eqref{eq:HtEj1}$) y representamos (ver Figura \@ref(fig:friesgoacum)) la función de riesgo acumulado $H(t)$
+
+\begin{equation}\label{eq:HtEj1}
+  H(t)=\int_{0}^{t} h(u)du=\int_{0}^{t}\frac{2t}{1+t^2}= [ \ln(1+t^2)\Big|_0^t = \left[ \ln(1+t^2) \right] - \left[ \ln(1+0^2) \right] = \ln(1+t^2), 
+\end{equation}
+
+
+
+
+```{r friesgoacum, fig.cap = "Función de riesgo acmulado H(t) para valores de t de 0 a 100.", fig.width=5, fig.height=4}
+
+df1$H_cum = log(1+df1$t^2)
+
+pl_H <- ggplot(data=df1) +
+  geom_line(aes(x=t,H_cum,color="H(t)")) +
+  scale_color_manual(values = c('H(t)' = 'lightskyblue')) +
+  labs(x="t", y="H(t)", colour='') +
+  theme(legend.position="top", plot.title = element_text(size = 10),
+        plot.caption = element_text(size = 8,color = "black", face = "italic"),
+        axis.title = element_text(size = 8), axis.text = element_text(size = 8),
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "grey", size =0.5),
+        axis.ticks.length=unit(-0.1, "cm"),
+        axis.text.x = element_text(margin=unit(c(2,0,0,0),"mm")),
+        axis.text.y = element_text(margin=unit(c(0,2,0,0),"mm")))
+
+pl_H
+```
+
+A continuación comprobamos la siguiente igualdad [@UPC]:
+
+\begin{equation}\label{eq:StCompEj1}
+  S(t) = exp(-H(t))
+\end{equation}
+
+Haciendo uso de la ecuación de supervivencia $\eqref{eq:StEj1}$, la ecuación de riesgo instantaneo $\eqref{eq:htEj11}$, de riesgo acumulado $\eqref{eq:HtEj1}$ y siendo $f(t)=\frac{d}{dt}F(t)=-\frac{d}{dt}S(t)$ y $S(t)=1-F(t)$ [@UPC], la función de riesgo instantaneo, $h(t)$ se puede expresar tal que:
+
+\begin{equation}
+  h(t)=\frac{\frac{d}{dt}F(t)}{S(t)}=\frac{-\frac{d}{dt}S(t)}{S(t)}=-\frac{dS(t)}{dt}\frac{1}{S(t)},
+\end{equation}
+
+
+la ecuación anterior también la podemos expresar tal que:
+
+\begin{equation}
+  h(t)dt=-\frac{dS(t)}{S(t)},
+\end{equation}
+
+si ahora tomamos integrales sobre las dos partes de la igualdad vemos que,
+
+\begin{equation}
+  \int_{0}^{t}h(u)du=-\int_{0}^{t}\frac{dS(u)}{S(u)}du = [ -logS(u)\Big|_0^t=-logS(t),
+\end{equation}
+
+y volviendo sobre la Ecuación $\eqref{eq:StCompEj1}$, vemos que la igualdad se cumple como se puede ver a continuación.
+
+\begin{equation}
+  S(t) = exp(-H(t))=exp(-\int_{0}^{t}h(u)du)=exp(-logS(t))=S(t).
+\end{equation}
+
+En la Figura \@ref(fig:fsuper) representamos y comprobamos gráficamente $S(t) = exp(-H(t))$
+
+```{r fsuper, fig.cap = "Función de supervivencia S(t) y función de comprobación de supervivencia S(t)=-log(H(t))  para valores de t de 0 a 100.", fig.width=5, fig.height=4}
+
+df1$H_cum = log(1+df1$t^2) #loritmo neperiano
+df1$S_check = exp(-df1$H_cum)
+
+pl_H <- ggplot(data=df1) +
+  geom_line(aes(x=t,S,color="S(t)")) +
+  geom_line(aes(x=t,S_check,color="S_check(t)"),linetype = "dashed") +
+  scale_color_manual(values = c('S(t)' = 'darkblue','S_check(t)' = 'gray')) +
+  labs(x="t", y="S(t)", colour='') +
+  theme(legend.position="top", plot.title = element_text(size = 10),
+        plot.caption = element_text(size = 8,color = "black", face = "italic"),
+        axis.title = element_text(size = 8), axis.text = element_text(size = 8),
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "grey", size =0.5),
+        axis.ticks.length=unit(-0.1, "cm"),
+        axis.text.x = element_text(margin=unit(c(2,0,0,0),"mm")),
+        axis.text.y = element_text(margin=unit(c(0,2,0,0),"mm")))
+
+pl_H
+
+
+```
+
+
+
+### Evaluar los apartados a),b) y c) en el valor $t=2$ e interpretad el significado del valor obtenido en términos de análisis de supervivencia.
+
+En la Tabla \@ref(tab:tt2) vemos los resultados de $f(t)$, $F(t)$, $S(t)$, $h(h)$, $H(t)$ para el valor $t=2$, y su representación en la Figura \@ref(fig:fall)
+
+```{r, tt2}
+df_1_p2 = df1 %>%
+        filter(t == 2)
+
+kable(df_1_p2, booktabs = T, caption = "Para t=2, resultados de $f(t)$, $F(t)$, $S(t)$, $h(h)$, $H(t)$, y la comprobación de $S(t)$")
+```
+
+
+```{r fall, fig.cap = "Función de densidad f(t), función de distribución F(t), función de supervivencia S(t) y función de riesgo instantáneo h(t) para valores de t de 0 a 20.", fig.width=5, fig.height=4}
+
+
+df_1_p = df1 %>%
+        filter(t <= 20)
+
+pl_2 <- ggplot(data=df_1_p) +
+  geom_line(aes(x=t,f,color="f(t)")) +
+  geom_line(aes(x=t,F_dist,color="F(t)")) +
+  geom_line(aes(x=t,S,color="S(t)")) +
+  geom_line(aes(x=t,h,color="h(t)")) +
+  scale_color_manual(values = c('f(t)' = 'black','F(t)' = 'gray', 'S(t)' = 'darkblue','h(t)' = 'skyblue')) +
+  labs(x="t", y="", colour='') +
+  theme(legend.position="top", plot.title = element_text(size = 10),
+        plot.caption = element_text(size = 8,color = "black", face = "italic"),
+        axis.title = element_text(size = 8), axis.text = element_text(size = 8),
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "grey", size =0.5),
+        axis.ticks.length=unit(-0.1, "cm"),
+        axis.text.x = element_text(margin=unit(c(2,0,0,0),"mm")),
+        axis.text.y = element_text(margin=unit(c(0,2,0,0),"mm")))
+
+pl_2
+
+
+
+```
+
+$F(t)$ representa un distribución acumulada y calcula la probabilidad acumulada de un valor dado de $t$. La función de distribución, $F(t)$ se puede utilizar para determinar la probabilidad de que una observación aleatoria que se toma de la población sea menor que o igual a cierto valor [@UPC]. En que en el ambíto del Analisis de supervivencia, "t" representa un instante de tiempo. 
+
+
+$f(t)$ representa la función de densidad que describe la probabilidad relativa según la cual dicha variable aleatoria $t$ tomará determinado valor.
+
+
+$S(t)$ representa la función de supervivencia y se puede obtener como función complementaria de la función de densidad, $F(t) = P(T \leq t)$ para todo instante, $t \geq0$, como complementaria [@UPC]. Es decir, la función $S(t)$ representa la probabilidad de que el sujeto de estudio "sobreviva" al instante "t"[@KleinbaumDavidG2005Sa]. Por tanto, para el valor $t=2$, según $S(t)$ la probabilidad de que el sujeto analizado "sobreviva" al instante $t$ es: `r df_1_p2$S`.
+
+$h(t)$ representa la función de riesgo o también la tasa de fallo en el instante $t$, y puede interpretarse como la "velocidad" a la cual se producen los "eventos" o "fallos" en el instante $t$ [@UPC]. En en instante, $t=2$ que estamos analizando la tasa de fallo instantanea es relativamente alta, por lo que podríamos deducir que estamos ante una etapa de "mortalidad infantil".
+
+
+
+
+
+### Calculad la tasa de riesgo o de fallo media en el intervalo [0.5 , 1]. Interpretad el resultado.
+
+
+La tasa de fallo media en el intervalo (a,b) se puede expresar como [@UPC]:
+
+\begin{equation}
+  h(a,b) = \frac{S(a)-S(b)}{(b-a)S(a)}
+\end{equation}
+
+
+
+```{r}
+a = 0.5
+b = 1.0
+s_a = df1 %>% filter(t==a) %>% select(S)
+s_b = df1 %>% filter(t==b) %>% select(S)
+
+h_ab = (s_a-s_b)/((b-a)*s_a)
+```
+
+haciendo uso de los valores obtenidos a partir de la Ecuación $\eqref{eq:StEj1}$, $h(a,b)$ será:
+
+\begin{equation}
+  h(a,b) = \frac{`r s_a` - `r s_b`}{(`r b`-`r a`)`r s_a`}
+\end{equation}
+
+Por tanto, este resultado, h(a,b) = `r h_ab`  proporciona la probabilidad condicionada media de que un dispositivo falle en cada uno de los subintervalos unitarios en los que se divide el intervalo (`r a`, `r b`) [@UPC].
+
+### Calculad el MTTF o vida media de la distribución dada, y los cuantiles del 25%, 50% y 75%.
+
+Para calcular el MTTF o vida media de la distribución dada seguiremos la siguiente ecuación [@UPC]:
+
+\begin{equation}\label{eq:MTTF}
+  MTTF = \int_{0}^{\infty}S(t)dt=\int_{0}^{\infty}\frac{1}{1+t^2} dt
+\end{equation}
+
+
+A continuación integramos la función $S(t$ para luego proceder a calcular la integral definida:
+
+\begin{equation}
+  \int\frac{1}{1+t^2} dt=
+\end{equation}
+
+
+sustituimos:
+
+$t=tan(u)$ y $dt=\frac{cos(u)sen(u)-sen(u)(-sen(u))}{cos^2du}du=\frac{1}{cos^2}du$
+
+\begin{equation}
+  =\int{\frac{1}{1+\frac{sin^2(u)}{cos^2(u)}}}\frac{1}{cos^2(u)}du=\int{\frac{1}{\frac{cos^2(u)+sen^2(u)}{cos^2(u)}}}\frac{1}{cos^2(u)}du
+\end{equation}
+
+
+\begin{equation}
+  =\int{\frac{1}{1+\frac{sin^2(u)}{cos^2(u)}}}\frac{1}{cos^2(u)}du=\int{\frac{1}{\frac{cos^2(u)+sen^2(u)}{cos^2(u)}}}\frac{1}{cos^2(u)}du
+\end{equation}
+
+sustituimos:
+$cos^2(u)+sen^2(u)=1$
+
+
+$$\int\frac{1}{\frac{1}{cos^2(u)}}\frac{1}{cos^2du}du=\int1du=u=arctan(t)$$
+
+Volviendo a la Ecuación $\eqref{eq:MTTF}$ el MTTF lo podemos calcular como:
+
+$$MTTF =[ \arctan(t)\Big|_0^\infty$$
+
+
+Los cuatiles 25%, 50% y 75% se pueden obtener a través de la función de distribución, $F(t)$ expresada mediante la Ecuación $\eqref{eq:FtEj1}$ de la siguiente manera:
+
+\begin{equation}
+  F(t)=\frac{t^2}{1+t^2} = 0.25
+\end{equation}
+
+\begin{equation}
+  F(t)=\frac{t^2}{1+t^2} = 0.50
+\end{equation}
+
+
+\begin{equation}
+  F(t)=\frac{t^2}{1+t^2} = 0.75
+\end{equation}
+
+
+
+resolvemos la ecuación de segundo grado con la siguiente fórmula, considerando la $t \geq 0$,
+
+```{r}
+f_cuadratica <- function(a,b,c){
+  #con quedamos con la parte positiva (t >= 0)
+  x = (-b+(sqrt(b^2-(4*a*c))))/(2*a)
+  return (x)
+}
+
+```
+
+
+\begin{equation}
+  t = \frac{-b \pm \sqrt{b^2-4ac}}{2a}
+\end{equation}
+
+
+
+```{r}
+c_25 = round(f_cuadratica(0.75,0,-0.25),4)
+c_50 = round(f_cuadratica(0.5,0,-0.5),4)
+c_75 = round(f_cuadratica(0.25,0,-0.75),4)
+
+```
+
+Cuantil 25% = `r c_25`
+
+Cuantil 50% = `r c_50`
+
+Cuantil 75% = `r c_75`
+
+
+
+
+
+
+### Si nos dan una muestra de datos con tamaño muestra $n=250$ y nos dicen que siguen esta distribución, ¿qué número esperado tenemos de individuos que no habrán fallado a tiempo 1?
+
+Podemos responder a esta pregunta hallando el número de individuos que ha sobrevido mediante la función de supervivencia, $S(t)$ expresanda mediante la Ecuación $\eqref{eq:StEj1}$, y que es complementaria de $F(t) = P(T \leq t)$, para el instante, $t = 1$.
+
+
+```{r}
+S1 = df1 %>% filter(t==1) %>% select (S)
+nS1 =S1*250
+```
+
+S(t=1) =  `r S1`
+
+Por tanto, el número de supervivientes es $= 250 * S(t=1) = 250 *$  `r S1` $=$ `r nS1`
+
+
+```{r}
+#df1
+```
+
+
+
+
+
+
+
+
+# Nos dan el siguiente conjunto de 10 datos de supervivencia, donde el signo + indica censura por la derecha:
+
+
+            Grupo A: 11.2, 14.1+, 17.0, 12.8, 5.3+ 
+            Grupo B: 14.9, 21.1, 7.1+, 18.7+, 19.4+
+
+
+**Calculad y/o representad (de forma manual y contrastada con R):**
+
+
+### El estimador de Kaplan-Meier global y separado para cada grupo.
+
+```{r}
+#dt <- fread("ejem.csv")
+#(dt)
+```
+
+Creamos una tabla con los datos de partida del enunciado (ver Tabla \@ref(tab:tsuperini)).
+
+```{r tsuperini}
+#Crear tabla con los datos de partida del enunciado
+#
+# groupA = c("6","6","6","7","10","13","16","22","23","6+","9+","10+","11+","17+","19+","20+","25+","32+","32+","34+","35+")
+# groupB = c("1","1","2","2","3","4","4","5","5","8","8","8","8","11","11","12","12","15","17","22","23")
+
+groupA = c("11.2","14.1+","17.0","12.8","5.3+")
+groupB = c("14.9", "21.1", "7.1+", "18.7+", "19.4+")
+
+groupA = cbind(groupA,rep("A", length(groupA)))
+colnames(groupA) <- c("time", "group")   
+
+groupB = cbind(groupB,rep("B", length(groupB)))
+colnames(groupB) <- c("time", "group")   
+
+df = data.frame(rbind(groupA,groupB)) %>%
+          mutate(failure = if_else(str_detect(time, "[+]"),0,1)) %>%
+          mutate(time = gsub('[+]', '', time)) %>%
+          mutate(time = as.numeric(time)) %>%
+          #dplyr::arrange(time) %>%
+          select(time,failure,group)
+          
+
+kable(df, booktabs = T, caption = "Conjunto de 10 datos de supervivencia para los Grupos A y B.")
+
+df = df %>%
+        dplyr::arrange(time)
+
+```
+
+
+
+Para obtener el estimador de Kaplan-Meier creamos en `R` la función `f_km_estimator` para estructurar los datos, calcular los valores observados, $m$, los valores censurados, $q$, los valores del conjunto de riesgo $n$ y los valores de la función de supervivencia.
+
+```{r echo=TRUE}
+
+f_km_estimator <- function(df,p_g){
+  
+    df_km1 = df %>% 
+                filter(group==p_g & failure==1) %>% 
+                group_by(time,failure,group) %>%
+                summarise(m_1f = n()) %>% ungroup
+              
+    df_km1 = rbind(c(0,0,p_g,0), df_km1) %>%
+                mutate(time = as.numeric(time),
+                       failure = as.numeric(failure), 
+                       m_1f = as.numeric(m_1f))
+    
+    #ubicar los censores para calcular m_1f
+    failures_g = df_km1$time
+    censored_g = df %>% filter(group==p_g & failure==0) %>% 
+                      group_by(time) %>% summarise(q_1f = n()) %>% ungroup
+    
+    df_merge = censored_g %>% left_join(df_km1, by=c('time')) %>% mutate(link=1)
+    #df_coinci = df_merge %>% filter(!is.na(failure))
+    #df_no_coinci = df_merge %>% filter(is.na(failure)) %>% mutate(link=1)
+    
+    
+    failures_g_t = data.frame(cbind(
+                                failures_g, 
+                                append(failures_g[2:length(failures_g)],999),1))
+    
+    colnames(failures_g_t) = c("f_ini", "f_fin", "link")   
+    
+    df_merge = failures_g_t %>% left_join(df_merge, by=c('link')) %>%
+                      mutate(q = if_else((time >= f_ini & time < f_fin),1,0)) %>%
+                      filter(q == 1)
+    
+    df_merge <- df_merge %>% 
+                group_by(f_ini) %>%
+                summarise(q_1f = sum(q_1f)) %>% ungroup %>% rename("time" = "f_ini")
+    
+    
+    df_merge = df_km1 %>% left_join(df_merge, by=c('time')) %>% 
+                            mutate(q_1f = ifelse(is.na(q_1f), 0, q_1f))
+      
+    n_1 = sum(df_merge$q_1f) + sum(df_merge$m_1f)
+    
+    df_merge <- df_merge %>%
+                    mutate(n_1f = lag(n_1- cumsum(m_1f+q_1f)),
+                           n_1f = ifelse(is.na(n_1f), n_1, n_1f))
+    
+    
+    df_merge <- df_merge %>% mutate(S_1t = cumprod((n_1f-m_1f)/n_1f)) %>%
+                              mutate(S_1t = round(S_1t,digits = 4))
+      
+return (df_merge)
+  
+}
+                
+
+```
+
+
+Obtenemos estimador KM para el grupo A haciendo uso de la función 'f_km_estimator' (ver Tabla \@ref(tab:tkmA)).
+
+```{r tkmA}
+group = "A"
+df_A <- f_km_estimator(df,group)
+kable(df_A %>% mutate_if(is.numeric, round, 3), 
+      booktabs = T, caption = "Resultados del estimador Kaplan-Meier para los datos de supervivencia del Grupo A.")
+  
+```
+
+A continuación contrastamos el estimador KM para el grupo A con R:$survfit$
+
+
+```{r}
+dta <- df %>% filter(group=="A")
+fita <- survfit(Surv(time = time, event = failure) ~ 1, data = dta, conf.type="plain")
+sumfita <- summary(fita)
+```
+
+```{r tkmACheck}
+df_A_fit <- data.frame(sumfita$time,sumfita$n.risk,sumfita$n.event,sumfita$surv,sumfita$lower,sumfita$upper)
+kable(df_A_fit %>% mutate_if(is.numeric, round, 3), 
+      booktabs = T, caption = "Comprobación con 'survfit' del estimador Kaplan-Meier para los datos de supervivencia del Grupo A.")
+```
+
+
+Obtenemos estimador KM para el grupo B haciendo uso de la función 'f_km_estimator' (ver Tabla \@ref(tab:tkmA)).
+
+```{r tkmB}
+group = "B"
+df_B <- f_km_estimator(df,group)
+kable(df_B %>% mutate_if(is.numeric, round, 3), 
+      booktabs = T, caption = "Resultados del estimador Kaplan-Meier para los datos de supervivencia del Grupo B.")
+```
+
+
+En la Tabla \@ref(tab:tkmBCheck) podemos comprobar el estimador KM para el grupo B con R:$survfit$.
+
+```{r tkmBCheck}
+dfb <- df %>% filter(group=="B")
+fitb <- survfit(Surv(time = time, event = failure) ~ 1, data = dfb, conf.type="plain")
+sumfitb <- summary(fitb)
+
+df_B_fit <- data.frame(sumfitb$time,sumfitb$n.risk,sumfitb$n.event,sumfitb$surv,sumfitb$lower,sumfitb$upper)
+kable(df_B_fit %>% mutate_if(is.numeric, round, 3), 
+      booktabs = T, caption = "Comprobación con 'survfit' del estimador Kaplan-Meier para los datos de supervivencia del Grupo B.")
+```
+
+A continuación, obtenemos el estimador KM para la población conjunta mediante la función 'f_km_estimator' (ver Tabla \@ref(tab:tkmGlobal)).
+
+
+```{r tkmGlobal}
+df_general <- df
+df_general$group <- "AB"
+
+p_g = "AB"
+df_AB<-f_km_estimator(df_general,p_g)
+kable(df_AB %>% mutate_if(is.numeric, round, 3), 
+      booktabs = T, caption = "Resultados del estimador Kaplan-Meier para los datos de supervivencia para toda la población de estudio.")
+
+```
+
+En la Tabla \@ref(tab:tkmGlobalCheck) podemos comprobar el estimador KM para el grupo B con R:$survfit$.
+
+```{r echo=TRUE}
+fit = survfit(Surv(time = time, event = failure) ~ group, 
+              data = df, conf.type="plain")
+```
+
+```{r tkmGlobalCheck}
+fit = survfit(Surv(time, failure) ~ 1, data=df, conf.type="plain")
+fitsum <- summary(fit)
+df_AB_fit <- data.frame(fitsum$time,fitsum$n.risk,fitsum$n.event,fitsum$surv,fitsum$lower,fitsum$upper)
+kable(df_AB_fit %>% mutate_if(is.numeric, round, 3), 
+      booktabs = T, caption = "Comprobación con 'survfit' del estimador Kaplan-Meier para los datos de supervivencia para toda la población de estudio.")
+
+```
+
+
+
+
+
+### b)La estimación de la varianza por el método de Greenwood para cada estimación del apartado a) con los correspondientes intervalos de confianza al 95%.
+
+
+Añadimos los intervalos de confianza sobre los datos del grupo A calculando la varianza con el método de Greenwood [@KleinbaumDavidG2005Sa]. Vemos los resultados en la Tabla \@ref(tab:tkmCIA). 
+
+```{r echo=TRUE}
+df_A <- df_A %>%
+          mutate(eq_p2 = cumsum(m_1f/(n_1f*(n_1f-m_1f))),
+                 var_G = (S_1t^2)*eq_p2,
+                 ci_min = if_else(S_1t-(1.96*sqrt(var_G))<0,0,S_1t-(1.96*sqrt(var_G))),
+                 ci_max = if_else(S_1t+(1.96*sqrt(var_G))>1,1,S_1t+(1.96*sqrt(var_G)))
+            )
+```
+
+```{r tkmCIA}
+kable(df_A %>% mutate_if(is.numeric, round, 3), 
+      booktabs = T, caption = "Resultados del estimador Kaplan-Meier con los intervalos de confianza al 95\\% para el grupo A.")
+```
+
+Ahora hacemos lo mismo sobre los datos del grupo B [@KleinbaumDavidG2005Sa] y vemos los resultados en la Tabla \@ref(tab:tkmCIB). 
+
+```{r}
+df_B <- df_B %>%
+          mutate(eq_p2 = cumsum(m_1f/(n_1f*(n_1f-m_1f))),
+                 var_G = (S_1t^2)*eq_p2,
+                 ci_min = if_else(S_1t-(1.96*sqrt(var_G))<0,0,S_1t-(1.96*sqrt(var_G))),
+                 ci_max = if_else(S_1t+(1.96*sqrt(var_G))>1,1,S_1t+(1.96*sqrt(var_G)))
+            )
+
+```
+
+```{r tkmCIB}
+kable(df_B %>% mutate_if(is.numeric, round, 3), 
+      booktabs = T, caption = "Resultados del estimador Kaplan-Meier con los intervalos de confianza al 95\\% para los datos de supervivencia del Grupo B.")
+```
+
+Finalmente añadimos los intervalos de confianza sobre el conjunto de datos de la población estudio (ver Tabla \@ref(tab:tkmCIGlobal)).
+
+```{r tkmCIGlobal}
+
+df_AB <- df_AB %>%
+          mutate(eq_p2 = cumsum(m_1f/(n_1f*(n_1f-m_1f))),
+                 var_G = (S_1t^2)*eq_p2,
+                 ci_min = if_else(S_1t-(1.96*sqrt(var_G))<0,0,S_1t-(1.96*sqrt(var_G))),
+                 ci_max = if_else(S_1t+(1.96*sqrt(var_G))>1,1,S_1t+(1.96*sqrt(var_G)))
+            )
+kable(df_AB %>% mutate_if(is.numeric, round, 3), booktabs = T, caption = "Resultado del estimador Kaplan-Meier con los intervalos de confianza al 95\\% para los datos de supervivencia para toda la población de estudio.")
+
+```
+
+Se puede comprobar fácilmente que los valores de los intervalos de los grupos A y B, así como los de la población conjunta calculados manualmente coinciden con los calculados con la función R:$survfit$ (ver Tablas \@ref(tab:tkmACheck), \@ref(tab:tkmBCheck), \@ref(tab:tkmGlobalCheck)). 
+
+
+
+
+### c) Los gráficos de las estimaciones por grupo de los apartados a) y b).
+
+En la Figura \@ref(fig:fACI), vemos el gráfico con las estimaciones, el valor de la mediana, y los intervalos de confianza representados para el Grupo A.
+
+```{r fACI, fig.cap = "Kaplan-Meier: función S(t) con los intervalos de confianza al 95\\%, Grupo A.", fig.width=5, fig.height=4}
+dfa <- df %>% filter(group=="A")
+fita <- survfit(Surv(time = time, event = failure) ~ group, data = dfa, conf.type="plain")
+ggsurvplot(fita, data = dfa,surv.median.line = "hv",palette = c("#E7B800"), 
+            xlab="Tiempo", ylab="S(t)", 
+            font.legend = c(9),font.tickslab = c(9),fontsize = c(9),font.x = c(9), font.y = c(9),pval.size = c(3),
+            title="", legend.title = "Grupo", legend.labs = c("A"))
+
+```
+
+En la Figura \@ref(fig:fBCI), vemos el gráfico con las estimaciones, el valor de la mediana, y los intervalos de confianza representados para el Grupo B.
+
+```{r fBCI, fig.cap = "Kaplan-Meier: función de supervivencia S(t) con los intervalos de confianza al 95\\%, Grupo B.", fig.width=5, fig.height=4}
+
+dfb <- df %>% filter(group=="B")
+fitb <- survfit(Surv(time = time, event = failure) ~ group, data = dfb, conf.type="plain")
+
+ggsurvplot(fitb, data = dfb, surv.median.line = "hv",
+            xlab="Tiempo", ylab="S(t)", 
+            font.legend = c(9),font.tickslab = c(9),fontsize = c(9),font.x = c(9), font.y = c(9),pval.size = c(3),
+            title="", legend.title = "Grupos", palette = c("#2E9FDF"),legend.labs = c("B"))
+
+```
+
+En la Figura \@ref(fig:fAllCI), vemos el gráfico con las estimaciones, el valor de la mediana, y los intervalos de confianza representados para el conjunto de datos de la población de estudio.
+
+```{r fAllCI, fig.cap = "Kaplan-Meier: función de supervivencia S(t) con los intervalos de confianza al 95\\%, población completa.", fig.width=5, fig.height=4}
+fit <- survfit(Surv(time = time, event = failure) ~ group, data = df, conf.type="plain")
+ggsurvplot(fit, data = df, pval = TRUE, conf.int = TRUE,surv.median.line = "hv",
+          #palette = c("#E7B800", "#2E9FDF"),            
+          xlab="Tiempo", ylab="S(t)", 
+          font.legend = c(9),font.tickslab = c(9),fontsize = c(9),font.x = c(9), font.y = c(9),pval.size = c(3),
+          title="", legend.title = "Grupos", legend.labs =c("A", "B"))
+
+```
+
+
+```{r}
+fitAB <- survfit(Surv(time = time, event = failure) ~ 1, data = df, conf.type="plain")
+```
+
+
+```{r, include=FALSE}
+ggsurvplot(fitAB, data = df,surv.median.line = "hv", legend.labs =c("A & B"))
+```
+
+
+
+
+### d) La vida media de cada grupo.
+
+
+El tiempo medio hasta el fallo que coincide con área encerrada entre la función $S(t)$ y el semieje horizontal $t$ en el intervalo $\left[0,\infty\right)$ [@UPC]. Lo podemos calcular mediante la fórmula del MTTF [@UPC].
+
+
+
+```{r echo=TRUE}
+vida_mediaA = sum(df_A$S_1t)
+```
+
+La vida media del grupo A es `r vida_mediaA`.
+
+
+```{r echo=TRUE}
+vida_mediaB = sum(df_B$S_1t)
+```
+
+La vida media del grupo B es `r vida_mediaB`.
+
+### e) Contrastad la hipótesis de igualdad de distribuciones por grupo. Utilizad todos los tests estudiados en la sección VI del Capítulo 2 de KK12. Interpretad y comparar los resultados (Indicación: puede usarse también el paquete de R $survMisc$)
+
+**Test Log-rank para 2 grupos**
+
+En este apartado describiremos y evaluaremos las equaciones para analizar si las curvas de Kaplan-Meier de los 2 grupos son estadísticamente equivalentes o no. Para ello, primero utilizaremos el metódo log-rank y después el resto de estadísticos alternativos. Útilizaremos el test de hipótesis para verificar si son significativamente similares o no. 
+
+La hipotésis nula $H_{0}$ que es testada, es que no hay diferencias significativas entre las dos curvas de supervivencia.
+
+Bajo esta hipótesis nula, el estadístico es aproximadamente igual a $\chi^2$ con un grado de libertad. El p-valor se puede determinar a través de las tablas de la distribución de $\chi^2$ o traves de la función de `R:pchisq`. Usaremos el valor $5\%$ (p-valor<0.05) para determinar si observamos una desviación significativa.  Cualquier desviación mayor que este nivel nos haría rechazar la hipótesis nula. Es decir, si el valor calculado para $\chi^2$ es mayor que el valor crítico convenido, entonces rechazaremos la hipótesis nula, y si no, la aceptaremos.
+
+
+A continuación se muestran las equaciones de manera general [@KleinbaumDavidG2005Sa],[@Kosinski],[@Dardis2018], incluyendo el peso $w_{f}$. 
+
+Para el caso particular de Log-rank sería $w_{f}=1$ 
+
+
+\begin{equation}\label{eq:LRtest}
+  LRtest = \frac{U^2}{V} \sim \chi^2(1)
+\end{equation}
+
+donde
+
+\begin{equation}\label{eq:LRtestU}
+  U = \sum_{f=1}w_{f}(n_{2f}-m_{2f}),
+\end{equation}
+
+\begin{equation}\label{eq:LRtestV}
+  V = Var(U)=\sum_{f=1}\left(w^2_{f} \frac{n_{1f}n_{2f}(m_{1f}+m_{2f})(n_{1f}+n_{2f}-m_{1f}-m_{2f})} {(n_{1f}+n_{2f})^2(n_{1f}+n_{2f}-1)} \right)
+\end{equation}
+
+y 
+
+* f = f-ésimo tiempo de fallo.
+* $n_{1f}$ es tamaño del conjunto de riesgo en el tiempo $f$ para el grupo A.
+* $n_{2f}$ es tamaño del conjunto de riesgo en el tiempo $f$ para el grupo B.
+* $m_{1f}$ son los eventos observados en el tiempo $f$ para el grupo A.
+* $m_{2f}$ son los eventos observados en el tiempo $f$ para el grupo B.
+* $e_{1f}$ son los eventos esperados en el tiempo $f$ para el grupo A.
+* $e_{2f}$ son los eventos esperados en el tiempo $f$ para el grupo B.
+* $w_{f}$ es el peso con el que se calcula el estadístico.
+
+A continuación mostramos parte del código `R` que puede resultar de interés para ver la implementación de las fórmulas.
+
+```{r echo=TRUE}
+f_km_other_stimators <- function(df_A,df_B){
+  
+  df_all <- data.frame(unique(c(df_A$time,df_B$time)))
+  colnames(df_all) = "time"
+  df_all <- df_all %>%
+            dplyr::arrange(time)
+  
+  df_all <- df_all %>% left_join(df_A[c("time","m_1f")], by=c('time'))
+  df_all <- df_all %>% left_join(df_B[c("time","m_1f")], by=c('time'))
+  df_all[is.na(df_all)] <- 0
+  
+  colnames(df_all) <- c("time","m_1f","m_2f")
+
+  failures_g <- df_all$time  
+  failures_g_t <- data.frame(cbind(
+                          failures_g, 
+                          append(failures_g[2:length(failures_g)],999),1))
+  colnames(failures_g_t) <- c("f_ini", "f_fin", "link")   
+  
+  #ubicar los censores para calcular q_1f
+  censored_gA <- df %>% filter(group=="A" & failure==0) %>% 
+                            group_by(time) %>% summarise(q_1f = n()) %>% ungroup
+  
+  df_merge_A = censored_gA %>% left_join(df_all %>% 
+                            filter(m_1f!=0), by=c('time')) %>% mutate(link=1)
+
+  df_merge_A = failures_g_t %>% left_join(df_merge_A, by=c('link')) %>%
+                    mutate(q = if_else((time >= f_ini & time < f_fin),1,0)) %>%
+                    filter(q == 1)
+  
+  df_merge_A <- df_merge_A %>% 
+              group_by(f_ini) %>%
+              summarise(q_1f = sum(q_1f)) %>% 
+                                ungroup %>% rename("time" = "f_ini")
+  
+  
+  #ubicar los censores para calcular q_2f
+  censored_gB <- df %>% filter(group=="B" & failure==0) %>% 
+                            group_by(time) %>% summarise(q_2f = n()) %>% ungroup
+  
+  df_merge_B = censored_gB %>% left_join(df_all %>% 
+                            filter(m_2f!=0), by=c('time')) %>% mutate(link=1)
+
+
+  df_merge_B = failures_g_t %>% left_join(df_merge_B, by=c('link')) %>%
+                    mutate(q = if_else((time >= f_ini & time < f_fin),1,0)) %>%
+                    filter(q == 1)
+  
+  df_merge_B <- df_merge_B %>% 
+              group_by(f_ini) %>%
+              summarise(q_2f = sum(q_2f)) %>% 
+                                ungroup %>% rename("time" = "f_ini")
+  
+    ##### JOIN both
+  
+  df_merge_all = df_all %>% left_join(df_merge_A, by=c('time')) %>% 
+                      mutate(q_1f = ifelse(is.na(q_1f), 0, q_1f))
+  
+  df_merge_all = df_merge_all %>% left_join(df_merge_B, by=c('time')) %>% 
+                      mutate(q_2f = ifelse(is.na(q_2f), 0, q_2f))
+
+}
+
+
+df_merge = f_km_other_stimators(df_A,df_B)
+n_1 = sum(df_merge$q_1f) + sum(df_merge$m_1f)
+
+
+```
+
+```{r echo=TRUE}
+df_merge_ <- df_merge %>%
+                mutate(n_1f = lag(n_1- cumsum(m_1f+q_1f)),
+                       n_1f = ifelse(is.na(n_1f), n_1, n_1f),
+                       n_2f = lag(n_1- cumsum(m_2f+q_2f)),
+                       n_2f = ifelse(is.na(n_2f), n_1, n_2f),
+                       e_1f = (n_1f/(n_1f+n_2f)*(m_1f+m_2f)),
+                       e_2f = (n_2f/(n_1f+n_2f)*(m_1f+m_2f)),
+                       m_e_1f = m_1f-e_1f,
+                       m_e_2f = m_2f-e_2f,
+                       var = ((n_1f*n_2f)*
+                                (m_1f+m_2f)*
+                                (n_1f+n_2f-m_1f-m_2f))/
+                                ((n_1f+n_2f)^2*(n_1f+n_2f-1)),
+                       var = ifelse(is.na(var),0,var),
+                       S_t = cumprod((n_1f+n_2f-m_1f-m_2f)/(n_1f+n_2f))
+                       )
+
+
+```
+
+En la Tabla \@ref(tab:tlr), vemos los resultados del test Log-rank.
+
+```{r tlr}
+kable(df_merge_  %>% mutate_if(is.numeric, round, 3), booktabs = T, caption = "Resultados de $m-e$ y $Var(m-e)$ para obtener el Log-rank.")
+
+df_merge_t <- df_merge_
+
+```
+
+A continuación mostramos parte del código `R` que puede resultar de interés para ver la implementación de las fórmulas.
+
+
+```{r echo=TRUE}
+s_m_e_1f <- sum(df_merge_$m_e_1f)
+s_e_1f <- sum(df_merge_$e_1f)
+s_m_e_2f <-sum(df_merge_$m_e_2f)
+s_e_2f <- sum(df_merge_$e_2f)
+var <-   round(sum(df_merge_$var),3)
+```
+
+
+```{r echo=TRUE}
+chisqr <- round((s_m_e_1f^2/s_e_1f)+(s_m_e_2f ^2/s_e_2f),3)
+pv_chi = round(pchisq(chisqr, df=1, lower.tail=FALSE),3)
+```
+
+
+Chi-square = `r chisqr` y 
+$P$ - Valor = Pr > $\chi^2$ = `r pv_chi`.
+Por lo tanto, según este test, aceptamos la hipótesis nula $H_O$, y podemos afirmar de manerar significativa que las curvas de los dos grupos A y B son similares.
+
+
+Calculamos el estadístico Log-rank   $\chi^2$ con $1$ grado de libertad bajo $H_0$
+
+```{r echo=TRUE}
+f_test_lr <- function(df_merge_t){
+  log_r <- sum(df_merge_t$m_e_2f)^2/sum(df_merge_t$var)
+  return(log_r)
+  
+}
+  
+test_lr = round(f_test_lr(df_merge_t),3)
+pv_lr = round(pchisq(test_lr, df=1, lower.tail=FALSE),3)
+
+```
+
+
+Estadístico Log-rank = `r test_lr`, y 
+$p$-valor $= Pr > \chi^2 =$ `r pv_lr`. 
+Por lo tanto, según este test, aceptamos la hipótesis nula $H_O$, y podemos afirmar de manerar significativa que las curvas de los dos grupos A y B son similares.
+
+```{r}
+fit <- survfit(Surv(time, failure) ~ group, data = df) 
+```
+
+```{r, include=FALSE}
+ggsurvplot(fit, data = df, pval = TRUE, pval.method = TRUE,
+           log.rank.weights = "1", conf.int = TRUE,surv.median.line = "hv",
+           title="Log-rank", legend.title = "Grupo", palette = c("#E7B800", "#2E9FDF"),legend.labs =c("A", "B"))
+```
+
+**Test alternativos a Log-rank para 2 grupos**
+
+Como está expuesto en la literatura [@Kosinski],[@Dardis2018], además del Long-rank hay un familia de test basada en las Equaciones $\eqref{eq:LRtest}$, $\eqref{eq:LRtestU}$ y $\eqref{eq:LRtestV}$, con los pesos $w_{f_{t}}$ descritos a continuación:
+
+
+* n Generalizada de Wilcoxon, $w_{t_{f}} = n_{t_{f}}$,
+* sqrtN Tharone & Ware, $w_{t_{f}} = \sqrt{n_{t_{f}}}$,
+* S1 Peto & Peto estimador de supervivencia modificado, $w_{t_{f}} = S1(f_{t})=\prod_{t=1}\left(1-\frac{e_{f_{t}}}{n_{f_{t}}+1}\right)$,
+* S2 Peto & Peto modificado, $w_{f_{t}}=S2(f_{t})=\frac{S1(f_t)n_{f_{t}}}{n_{f_{t}}+1}$
+
+
+A continuación, mostramos la implementación en R de las ecuaciones en el presente trabajo [@Kosinski],[@Dardis2018].
+
+```{r echo=TRUE}
+f_tests <- function(df_merge_t,p,q){
+    df_merge_t <- df_merge_t %>% 
+                # Wilcoxon
+                mutate(
+                    w_w = (n_1f+n_2f),
+                    u_w = m_e_2f*w_w,
+                    var_w = (w_w^2)*
+                                    (((n_1f*n_2f)*(m_1f+m_2f)*
+                                        (n_1f+n_2f-m_1f-m_2f))/
+                                        (((n_1f+n_2f)^2)*(n_1f+n_2f-1))),
+                    var_w = ifelse(is.nan(var_w),0,var_w)
+                    ) %>%
+                # Tharone & Ware
+                mutate(
+                    w_tw = sqrt(n_1f+n_2f),
+                    u_tw = m_e_2f*w_tw,
+                    var_tw = (w_tw^2)*
+                                    (((n_1f*n_2f)*(m_1f+m_2f)*
+                                        (n_1f+n_2f-m_1f-m_2f))/
+                                        (((n_1f+n_2f)^2)*(n_1f+n_2f-1))),
+                   var_tw = ifelse(is.nan(var_tw),0,var_tw)
+                    ) %>%
+                # Peto & Peto
+                mutate(
+                    w_pp = cumprod(1-((e_1f+e_2f)/(n_1f+n_2f+1))),
+                    u_pp = m_e_2f*w_pp,
+                    var_pp = (w_pp^2)*
+                                    (((n_1f*n_2f)*
+                                      (m_1f+m_2f)*(n_1f+n_2f-m_1f-m_2f))/
+                                       (((n_1f+n_2f)^2)*(n_1f+n_2f-1))),
+                    var_pp = ifelse(is.nan(var_pp),0,var_pp)
+                    ) %>%
+                # Peto modificado
+                mutate(
+                      w_pm = (w_pp*(n_1f+n_2f))/(n_1f+n_2f+1),
+                      u_pm = m_e_2f*w_pm,
+                      var_pm = (w_pm^2)*(((n_1f*n_2f)*
+                                            (m_1f+m_2f)*
+                                            (n_1f+n_2f-m_1f-m_2f))/
+                                            (((n_1f+n_2f)^2)*(n_1f+n_2f-1))),
+                      var_pm = ifelse(is.nan(var_pm),0,var_pm)
+                ) %>%
+                # Fleming-Harrington
+                mutate(
+                      w_fh = if_else(is.na(lag((S_t^p)*(1-S_t)^q)),0,
+                                          lag((S_t^p)*(1-S_t)^q)),
+                      u_fh = m_e_2f*w_fh,
+                      var_fh = (w_fh^2)*(((n_1f*n_2f)*
+                                            (m_1f+m_2f)*
+                                            (n_1f+n_2f-m_1f-m_2f))/
+                                            (((n_1f+n_2f)^2)*(n_1f+n_2f-1))),
+                      var_fh = ifelse(is.nan(var_fh),0,var_fh)
+                 )
+
+  return (df_merge_t)
+
+}
+
+```
+
+```{r}
+p=9
+q=3
+
+df_merge_t_all = f_tests(df_merge_t,p,q)
+c_b = c("time","m_1f","m_2f","q_1f","q_2f","n_1f","n_2f","e_1f","e_2f","S_t")
+```
+
+
+**Test de Wilcoxon:**
+
+En la Tabla \@ref(tab:tw), vemos los resultados del test Wilcoxon.
+
+```{r tw}
+
+#Wilcoxon
+c_t = c("w_w","u_w","var_w")
+kable(df_merge_t_all %>% select(c(c_b,c_t))  %>% mutate_if(is.numeric, round, 3), booktabs = T, caption = "Resultados para el test de Wilcoxon.")
+
+test_w  <- round(sum(df_merge_t_all$u_w)^2/sum(df_merge_t_all$var_w),3)
+pv_w = round(pchisq(test_w, df=1, lower.tail=FALSE),3)
+
+```
+
+Estadístico Wilcoxon = `r test_w`, y
+$p$-valor $= Pr > \chi^2 =$ `r pv_w`.
+Por lo tanto, según este test, aceptamos la hipótesis nula $H_O$, y podemos afirmar de manerar significativa que las curvas de los dos grupos A y B son similares.
+
+```{r, include=FALSE}
+ggsurvplot(fit, data = df, pval = TRUE, pval.method = TRUE,
+           log.rank.weights = "n", pval.method.coord = c(5, 0.1),
+           pval.method.size = 3,
+           conf.int = FALSE,surv.median.line = "hv",
+           title="Wilcoxon", legend.title = "Grupo", palette = c("#E7B800", "#2E9FDF"),legend.labs =c("A", "B"))
+```
+
+**Test de Tharone & Ware:**
+
+En la Tabla \@ref(tab:ttw), vemos los resultados del test Tharone & Ware.
+
+```{r ttw}
+#Tharone and Ware
+c_t = c("w_tw","u_tw","var_tw")
+kable(df_merge_t_all %>% select(c(c_b,c_t))  %>% mutate_if(is.numeric, round, 3), booktabs = T, caption = "Resultados para el test de Tharone \\& Ware.")
+
+test_tw  <- round(sum(df_merge_t_all$u_tw)^2/sum(df_merge_t_all$var_tw),3)
+pv_tw = round(pchisq(test_tw, df=1, lower.tail=FALSE),3)
+
+```
+
+Estadístico Tharone & Ware = `r test_tw`, y
+$p$-valor $= Pr > \chi^2 =$ `r pv_tw`.
+Por lo tanto, según este test, aceptamos la hipótesis nula $HO$, y podemos afirmar de manerar significativa que las curvas de los dos grupos A y B son similares.
+
+```{r, include=FALSE}
+ggsurvplot(fit, data = df, pval = TRUE, pval.method = TRUE,
+           log.rank.weights = "sqrtN", pval.method.coord = c(5, 0.1),
+           pval.method.size = 3,
+           conf.int = FALSE,surv.median.line = "hv",
+           title="Tharone & Ware", legend.title = "Grupo", palette = c("#E7B800", "#2E9FDF"),legend.labs =c("A", "B"))
+```
+
+**Test de Peto & Peto**
+
+En la Tabla \@ref(tab:tpp), vemos los resultados del test Peto & Peto.
+
+```{r tpp}
+#Peto-Peto
+c_t = c("w_pp","u_pp","var_pp")
+kable(df_merge_t_all %>% select(c(c_b,c_t))  %>% mutate_if(is.numeric, round, 3), booktabs = T, caption = "Resultados para el test de Peto \\& Peto.")
+
+test_pp  <- round(sum(df_merge_t_all$u_pp)^2/sum(df_merge_t_all$var_pp),3)
+pv_pp = round(pchisq(test_pp, df=1, lower.tail=FALSE),3)
+
+```
+
+```{r, include=FALSE}
+ggsurvplot(fit, data = df, pval = TRUE, pval.method = TRUE,
+           log.rank.weights = "S1", pval.method.coord = c(5, 0.1),
+           pval.method.size = 3,
+           conf.int = FALSE,surv.median.line = "hv",
+           title="Peto", legend.title = "Grupo", palette = c("#E7B800", "#2E9FDF"),legend.labs =c("A", "B"))
+```
+
+Estadístico Peto = `r test_pp`, y
+$p$-valor $= Pr > \chi^2 =$ `r pv_pp`.
+Por lo tanto, según este test, aceptamos la hipótesis nula $H_O$, y podemos afirmar de manerar significativa que las curvas de los dos grupos A y B son similares.
+
+**Test de Peto modificado**
+
+En la Tabla \@ref(tab:tpm), vemos los resultados del test Peto modificado.
+
+```{r tpm}
+#Peto modificado
+c_t = c("w_pm","u_pm","var_pm")
+kable(df_merge_t_all %>% select(c(c_b,c_t))  %>% mutate_if(is.numeric, round, 3), booktabs = T, caption = "Resultados para el test de Peto modificado.")
+
+test_pm  <- round(sum(df_merge_t_all$u_pm)^2/sum(df_merge_t_all$var_pm),3)
+pv_pm = round(pchisq(test_pm, df=1, lower.tail=FALSE),3)
+
+```
+
+Estadístico Peto modificado = `r test_pm`, y
+$p$-valor $= Pr > \chi^2 =$ `r pv_pm`.
+Por lo tanto, según este test, aceptamos la hipótesis nula $H_O$, y podemos afirmar de manerar significativa que las curvas de los dos grupos A y B son similares.
+
+```{r, include=FALSE}
+ggsurvplot(fit, data = df, pval = TRUE, pval.method = TRUE,
+           log.rank.weights = "S2", pval.method.coord = c(5, 0.1),
+           pval.method.size = 3,
+           conf.int = FALSE,surv.median.line = "hv",
+           title="Peto modificado", legend.title = "Grupo", palette = c("#E7B800", "#2E9FDF"),legend.labs =c("A", "B"))
+```
+
+**Test de Fleming-Harrington**
+
+En la Tabla \@ref(tab:tfh11), vemos los resultados del test Fleming-Harrington para p=1, p=1.
+
+```{r tfh11}
+#Fleming-Harrington
+df_merge_t_fh = f_tests(df_merge_t,1,1)
+c_t = c("w_fh","u_fh","var_fh")
+kable(df_merge_t_fh %>% select(c(c_b,c_t))  %>% mutate_if(is.numeric, round, 3), booktabs = T, caption = "Resultados para el test de Fleming-Harrington para p=1, q=1.")
+
+test_fh_11  <- round(sum(df_merge_t_fh$u_fh)^2/sum(df_merge_t_fh$var_fh),3)
+pv_fh_11 = round(pchisq(test_fh_11, df=1, lower.tail=FALSE),3)
+```
+
+Estadístico Fleming-Harrington (p=1,q=1) = `r test_fh_11`, y
+$p$-valor $= Pr > \chi^2 =$ `r pv_fh_11`.
+Por lo tanto, según este test, aceptamos la hipótesis nula $H_O$, y podemos afirmar de manerar significativa que las curvas de los dos grupos A y B son similares.
+
+En la Tabla \@ref(tab:tfh), vemos los resultados del test Fleming-Harrington para p=9, p=3. 
+
+```{r tfh}
+#Fleming-Harrington
+c_t = c("w_fh","u_fh","var_fh")
+kable(df_merge_t_all %>% select(c(c_b,c_t))  %>% mutate_if(is.numeric, round, 3), booktabs = T, caption = "Resultados para el test de Fleming-Harrington para p=9, q=3.")
+
+test_fh  <- round(sum(df_merge_t_all$u_fh)^2/sum(df_merge_t_all$var_fh),3)
+pv_fh = round(pchisq(test_fh, df=1, lower.tail=FALSE),3)
+```
+
+Estadístico Fleming-Harrington ($p=9$,$q=3$) = `r test_fh`, y
+$p$-valor $= Pr > \chi^2 =$ `r pv_fh`.
+Por lo tanto, según este test, aceptamos la hipótesis nula $H_O$, y podemos afirmar de manerar significativa que las curvas de los dos grupos A y B son similares. Cabe destacar, que con estos parámetros selecciónados ($p=9$, $p=3$) obtenemos un valor para el estadístico menor, que el calculado par el mismo estadístico con los parametros ($p=9$, $p=3$)
+
+```{r, include=FALSE}
+ggsurvplot(fit, data = df, pval = TRUE, pval.method = TRUE,
+           log.rank.weights = "FH_p=1_q=1", pval.method.coord = c(5, 0.1),
+           pval.method.size = 3,
+           conf.int = FALSE,surv.median.line = "hv",
+           xlab="Tiempo", ylab="S(t)", 
+           title="Fleming-Harrington", legend.title = "Grupo", palette = c("#E7B800", "#2E9FDF"),legend.labs =c("A", "B"))
+```
+
+```{r talltests}
+df_sum =data.frame(rbind(
+            cbind(sum(df_merge_t_all$m_e_2f),sum(df_merge_t_all$var),test_lr,pv_lr),
+            cbind(sum(df_merge_t_all$u_w),sum(df_merge_t_all$var_w),test_w,pv_w),
+            cbind(sum(df_merge_t_all$u_tw),sum(df_merge_t_all$var_tw),test_tw,pv_tw),
+            cbind(sum(df_merge_t_all$u_pp),sum(df_merge_t_all$var_pp),test_pp,pv_pp),
+            cbind(sum(df_merge_t_all$u_pm),sum(df_merge_t_all$var_pm),test_pm,pv_pm),
+            cbind(sum(df_merge_t_all$u_fh),sum(df_merge_t_all$var_fh),test_fh,pv_fh),
+            cbind(sum(df_merge_t_fh$u_fh),sum(df_merge_t_fh$var_fh),test_fh_11,pv_fh_11)
+            )) %>%  mutate_if(is.numeric, round, 4) 
+colnames(df_sum)= c("U", "Var", "Chi-square (1 df)","P-value")
+
+
+Tests = c("Long-Rank (w=1)", "Wilcoxon (w=n)", "Tharone-Ware (w= sqrtN)", "Peto-Peto(w=S1)", "Peto-Peto modificado (w=S2)", "Fleming-Harrington (w=FH, p=9,q=3)","Fleming-Harrington (w=FH, p=1,q=1)" )
+df_sum = cbind(Tests, df_sum)
+kable(df_sum, booktabs = T, caption = "Resultados para el Log-rang y otros tests alternativos, Chi-square \\& P-value")
+
+
+```
+
+Utilizando las funciones `Surv`, `survfit` y  `comp` de `R` vemos que son los mismos a los obtenidos manualmente (ver Tabla \@ref(tab:talltests)).
+
+```{r comment=NA}
+fit = survfit(Surv(time, failure) ~ group, data = df)
+comp(ten(fit))
+```
+
+Viendo la Tabla \@ref(tab:talltests) de resultados final, podemos decir que todos los tests dan un p-valor que indica que la hipóstesis nula $H_0$ debería de ser aceptada, por lo que podemos afirmar de manerar significativa que las curvas de los dos grupos A y B son similares. No obstante, parece claro que el conjunto de datos estudio no es muy elevado.
+
+
+
+# Anexos
+
+https://github.com/azenzano/SurvivalAnalysis.git (last version: 2022/04/10)
+
+# References
+
+\mbox{~}
