@@ -1,5 +1,6 @@
 ---
-title: 'PEC1'
+title: 'Análisis de Supervivencia'
+subtitle: 'PEC1'
 author: "Ager Zenzano Sarasola - UOC"
 date: "23 de marzo de 2022"
 output:
@@ -87,7 +88,7 @@ Para que una función $f(t)$ sea una función de densidad, siendo la vaiable $t$
   \text{2. }\int_{-\infty}^{+\infty}f(t)dt=1.
 \end{equation}
 
-Al estudiar la primera condición (ver Ecuación $\eqref{eq:Fcond1}$), vemos que para $t \geq 0$, en la primera de la función, $f(t)$ es 0, por lo que cumple la primera condición. Para la segunda parte de la Ecuación $\eqref{eq:ftEj1}$, vemos que para valores positivos de $t$ y cuando $t$ tiende a $+\infty$, el resultado de $f(t)$ será más pequeño y se irá acercando a 0, pero sin que $f(t)$ obtenga valores negativos.
+Al estudiar la primera condición (ver Ecuación $\eqref{eq:Fcond1}$), vemos que para $t \geq 0$, el valor de la Ecuación $\eqref{eq:ftEj1}$ es 0, por lo que cumple la primera condición. Para la segunda parte de la Ecuación $\eqref{eq:ftEj1}$, vemos que para valores positivos de $t$ y cuando $t$ tiende a $+\infty$, el resultado de $f(t)$ será más pequeño y se irá acercando a 0, pero sin que $f(t)$ obtenga valores negativos.
 
 Para verificar la Ecuación $\eqref{eq:Fcond2}$ seguiremos los siguientes pasos:
 
@@ -98,7 +99,7 @@ Para verificar la Ecuación $\eqref{eq:Fcond2}$ seguiremos los siguientes pasos:
 Después de separar la integral en dos integrales las calcularemos como dos integrales impropias:
 
 \begin{equation}
-  \int_{-\infty}^{0}f(t)dt = 0
+  \int_{-\infty}^{0}f(t)dt = 0,
 \end{equation}
 
 \begin{equation}
@@ -119,7 +120,7 @@ Hallamos la integral de $f(t)$ para $t \geq 0$, y después calcularemos la integ
   \lim_{R\to+\infty}\int_{0}^{R}\frac{2t}{(1+t^2)^2}dt =  \lim_{R\to+\infty}\left(-\frac{1}{1+R^2}+1\right) =1
 \end{equation}
 
-Si verificamos la Ecuación $\eqref{eq:Fcond21}$, quedaría tal que
+Si volvemos a la Ecuación $\eqref{eq:Fcond21}$, vemos que quedaría de la siguiente manera:
 
 \begin{equation}
   \int_{-\infty}^{+\infty}f(t)dt=\int_{-\infty}^{0}f(t)dt+\int_{0}^{+\infty}f(t)dt = 0 + 1 = 1.
@@ -128,7 +129,7 @@ Si verificamos la Ecuación $\eqref{eq:Fcond21}$, quedaría tal que
 
 Por tanto, como se cumplen las condiciones expuestas mediante las Ecuaciones $\eqref{eq:Fcond1}$ y $\eqref{eq:Fcond2}$, podemos decir que $f(t)$ es una función de densidad.
 
-En la Figura \@ref(fig:fdensi) representamos la función de distribución $f(t)$ (ver Ecuación $\eqref{eq:ftEj1}$), para valores de $t$ de 0 a 100. En la Tabla \@ref(tab:tej1) vemos un ejemplo de los primero 10 valores del conjunto de datos calculados:
+En la Figura \@ref(fig:fdensi) representamos la función de densidad $f(t)$ (ver Ecuación $\eqref{eq:ftEj1}$), para valores de $t$ desde 0 hasta 100. En la Tabla \@ref(tab:tej1) vemos un ejemplo de los primeros 10 valores del conjunto de datos calculados como ejemplo:
 
 ```{r}
 t= seq(0,100,0.1)
@@ -143,7 +144,7 @@ kable(head(df1,10), booktabs = T, caption = "Diez primero valores de $f(t)$ para
 
 
 
-```{r fdensi, fig.cap = "Función de densidad f(t) para valores de t de 0 a 100.", fig.width=5, fig.height=4}
+```{r fdensi, fig.cap = "Función de densidad f(t) para valores de t desde 0 hasta 100.", fig.width=5, fig.height=4}
 pl_f <- ggplot(data=df1) +
   geom_line(aes(x=t,y=f,color="f(t)")) +
   scale_color_manual(values = c('f(t)' = 'black')) +
@@ -166,14 +167,14 @@ pl_f
  
 Calculamos la  función de distribución $F(t)$ integrando la función de densidad, f(t) $\eqref{eq:ftEj1}$.
 
-Vemos que a partir de la Ecuación $\eqref{eq:ftEj1}$, para $t < 0$, la función de distribucion es $F(t)=0$, y para $t \geq 0$ la función de distribución, $F(t)$ se puede expresar tal que
+Vemos que a partir de la Ecuación $\eqref{eq:ftEj1}$, para $t < 0$, la función de distribución es $F(t)=0$, y para $t \geq 0$ la función de distribución, $F(t)$ se puede expresar tal que
 
 \begin{equation}
   F(T) = P(T\leq t)= \int_{0}^{t}f(u)du = 
   \int_{0}^{t}\frac{2t}{(1+t^2)^2}dt=- \frac{1}{1+t^2}\Big|_0^t = \left[ -\frac{1}{1+t^2} \right] - \left[-\frac{1}{1+0} \right] = -\frac{1}{1+t^2}+1 = \frac{t^2}{1+t^2}.
 \end{equation}
 
-Si representamos la función de distribución por partes, $F(t)$ de manera completa tiene el siguientes aspecto:
+Si representamos la función de distribución por partes, $F(t)$ de manera completa tiene el siguiente aspecto:
 
 \begin{equation}\label{eq:FtEj1}
 F(t)=  \left\{
@@ -209,7 +210,7 @@ S(t)=  \left\{
 
 En la Figura \@ref(fig:fdistri) representamos la función de distribución F(t) y la función de supervivencia $S(t)$.
 
-```{r fdistri, fig.cap = "Función de distribución F(t) y función de supervivencia S(t) para valores de t de 0 a 100.", fig.width=5, fig.height=4}
+```{r fdistri, fig.cap = "Función de distribución F(t) y función de supervivencia S(t) para valores de t desde 0 hasta 100.", fig.width=5, fig.height=4}
 
 df1$F_dist = (df1$t^2/(1+df1$t^2))
 df1$S = 1-(df1$t^2/(1+df1$t^2))
@@ -250,7 +251,7 @@ h(t)=  \left\{
 \right.
 \end{equation}
 
-```{r friesgo, fig.cap = "Función de riesgo instantáneo h(t) para valores de t de 0 a 100.", fig.width=5, fig.height=4}
+```{r friesgo, fig.cap = "Función de riesgo instantáneo h(t) para valores de t desde 0 hasta 100.", fig.width=5, fig.height=4}
 
 df1$h= df1$f/df1$S
 
@@ -285,7 +286,7 @@ Una vez calculada la función de riesgo $h(t)$, calculamos (ver Ecuación $\eqre
 
 
 
-```{r friesgoacum, fig.cap = "Función de riesgo acmulado H(t) para valores de t de 0 a 100.", fig.width=5, fig.height=4}
+```{r friesgoacum, fig.cap = "Función de riesgo acmulado H(t) para valores de t desde 0 hasta 100.", fig.width=5, fig.height=4}
 
 df1$H_cum = log(1+df1$t^2)
 
@@ -311,7 +312,7 @@ A continuación comprobamos la siguiente igualdad [@UPC]:
   S(t) = exp(-H(t))
 \end{equation}
 
-Haciendo uso de la ecuación de supervivencia $\eqref{eq:StEj1}$, la ecuación de riesgo instantaneo $\eqref{eq:htEj11}$, de riesgo acumulado $\eqref{eq:HtEj1}$ y siendo $f(t)=\frac{d}{dt}F(t)=-\frac{d}{dt}S(t)$ y $S(t)=1-F(t)$ [@UPC], la función de riesgo instantaneo, $h(t)$ se puede expresar tal que:
+Haciendo uso de la ecuación de supervivencia $\eqref{eq:StEj1}$, la ecuación de riesgo instantáneo $\eqref{eq:htEj11}$, de riesgo acumulado $\eqref{eq:HtEj1}$ y siendo $f(t)=\frac{d}{dt}F(t)=-\frac{d}{dt}S(t)$ y $S(t)=1-F(t)$ [@UPC], la función de riesgo instantáneo, $h(t)$ se puede expresar tal que:
 
 \begin{equation}
   h(t)=\frac{\frac{d}{dt}F(t)}{S(t)}=\frac{-\frac{d}{dt}S(t)}{S(t)}=-\frac{dS(t)}{dt}\frac{1}{S(t)},
@@ -330,7 +331,7 @@ si ahora tomamos integrales sobre las dos partes de la igualdad vemos que,
   \int_{0}^{t}h(u)du=-\int_{0}^{t}\frac{dS(u)}{S(u)}du = [ -logS(u)\Big|_0^t=-logS(t),
 \end{equation}
 
-y volviendo sobre la Ecuación $\eqref{eq:StCompEj1}$, vemos que la igualdad se cumple como se puede ver a continuación.
+y volviendo sobre la Ecuación $\eqref{eq:StCompEj1}$, vemos que la igualdad se cumple tal y como se puede ver a continuación.
 
 \begin{equation}
   S(t) = exp(-H(t))=exp(-\int_{0}^{t}h(u)du)=exp(-logS(t))=S(t).
@@ -338,7 +339,7 @@ y volviendo sobre la Ecuación $\eqref{eq:StCompEj1}$, vemos que la igualdad se 
 
 En la Figura \@ref(fig:fsuper) representamos y comprobamos gráficamente $S(t) = exp(-H(t))$
 
-```{r fsuper, fig.cap = "Función de supervivencia S(t) y función de comprobación de supervivencia S(t)=-log(H(t))  para valores de t de 0 a 100.", fig.width=5, fig.height=4}
+```{r fsuper, fig.cap = "Función de supervivencia S(t) y función de comprobación de supervivencia S(t)=-log(H(t))  para valores de t desde 0 hasta 100.", fig.width=5, fig.height=4}
 
 df1$H_cum = log(1+df1$t^2) #loritmo neperiano
 df1$S_check = exp(-df1$H_cum)
@@ -404,30 +405,21 @@ pl_2
 
 ```
 
-$F(t)$ representa un distribución acumulada y calcula la probabilidad acumulada de un valor dado de $t$. La función de distribución, $F(t)$ se puede utilizar para determinar la probabilidad de que una observación aleatoria que se toma de la población sea menor que o igual a cierto valor [@UPC]. En que en el ambíto del Analisis de supervivencia, "t" representa un instante de tiempo. 
-
+$F(t)$ representa un distribución acumulada y calcula la probabilidad acumulada de un valor dado de $t$. La función de distribución, $F(t)$ se puede utilizar para determinar la probabilidad de que una observación aleatoria que se toma de la población sea menor que o igual a cierto valor [@UPC]. En que en el ámbito del Análisis de supervivencia, "t" representa un instante de tiempo. 
 
 $f(t)$ representa la función de densidad que describe la probabilidad relativa según la cual dicha variable aleatoria $t$ tomará determinado valor.
 
-
 $S(t)$ representa la función de supervivencia y se puede obtener como función complementaria de la función de densidad, $F(t) = P(T \leq t)$ para todo instante, $t \geq0$, como complementaria [@UPC]. Es decir, la función $S(t)$ representa la probabilidad de que el sujeto de estudio "sobreviva" al instante "t"[@KleinbaumDavidG2005Sa]. Por tanto, para el valor $t=2$, según $S(t)$ la probabilidad de que el sujeto analizado "sobreviva" al instante $t$ es: `r df_1_p2$S`.
 
-$h(t)$ representa la función de riesgo o también la tasa de fallo en el instante $t$, y puede interpretarse como la "velocidad" a la cual se producen los "eventos" o "fallos" en el instante $t$ [@UPC]. En en instante, $t=2$ que estamos analizando la tasa de fallo instantanea es relativamente alta, por lo que podríamos deducir que estamos ante una etapa de "mortalidad infantil".
-
-
-
-
+$h(t)$ representa la función de riesgo o también la tasa de fallo en el instante $t$, y puede interpretarse como la "velocidad" a la cual se producen los "eventos" o "fallos" en el instante $t$ [@UPC]. En el instante $t=2$, que estamos analizando la tasa de fallo instantánea es relativamente alta, por lo que podríamos deducir que estamos ante una etapa de "mortalidad infantil".
 
 ### Calculad la tasa de riesgo o de fallo media en el intervalo [0.5 , 1]. Interpretad el resultado.
-
 
 La tasa de fallo media en el intervalo (a,b) se puede expresar como [@UPC]:
 
 \begin{equation}
   h(a,b) = \frac{S(a)-S(b)}{(b-a)S(a)}
 \end{equation}
-
-
 
 ```{r}
 a = 0.5
@@ -446,6 +438,9 @@ haciendo uso de los valores obtenidos a partir de la Ecuación $\eqref{eq:StEj1}
 
 Por tanto, este resultado, h(a,b) = `r h_ab`  proporciona la probabilidad condicionada media de que un dispositivo falle en cada uno de los subintervalos unitarios en los que se divide el intervalo (`r a`, `r b`) [@UPC].
 
+Al igual que hemos dicho en el apartado anterior, aquí también podemos deducir que en este intervalo, desde el punto de vista de riesgo o de fallo medio estaríamos ante una etapa de "mortalidad infantil".
+
+
 ### Calculad el MTTF o vida media de la distribución dada, y los cuantiles del 25%, 50% y 75%.
 
 Para calcular el MTTF o vida media de la distribución dada seguiremos la siguiente ecuación [@UPC]:
@@ -455,7 +450,7 @@ Para calcular el MTTF o vida media de la distribución dada seguiremos la siguie
 \end{equation}
 
 
-A continuación integramos la función $S(t$ para luego proceder a calcular la integral definida:
+A continuación integramos la función $S(t)$ para luego proceder a calcular la integral definida:
 
 \begin{equation}
   \int\frac{1}{1+t^2} dt=
@@ -467,12 +462,12 @@ sustituimos:
 $t=tan(u)$ y $dt=\frac{cos(u)sen(u)-sen(u)(-sen(u))}{cos^2du}du=\frac{1}{cos^2}du$
 
 \begin{equation}
-  =\int{\frac{1}{1+\frac{sin^2(u)}{cos^2(u)}}}\frac{1}{cos^2(u)}du=\int{\frac{1}{\frac{cos^2(u)+sen^2(u)}{cos^2(u)}}}\frac{1}{cos^2(u)}du
+  =\int{\frac{1}{1+\frac{sen^2(u)}{cos^2(u)}}}\frac{1}{cos^2(u)}du=\int{\frac{1}{\frac{cos^2(u)+sen^2(u)}{cos^2(u)}}}\frac{1}{cos^2(u)}du
 \end{equation}
 
 
 \begin{equation}
-  =\int{\frac{1}{1+\frac{sin^2(u)}{cos^2(u)}}}\frac{1}{cos^2(u)}du=\int{\frac{1}{\frac{cos^2(u)+sen^2(u)}{cos^2(u)}}}\frac{1}{cos^2(u)}du
+  =\int{\frac{1}{1+\frac{sen^2(u)}{cos^2(u)}}}\frac{1}{cos^2(u)}du=\int{\frac{1}{\frac{cos^2(u)+sen^2(u)}{cos^2(u)}}}\frac{1}{cos^2(u)}du
 \end{equation}
 
 sustituimos:
@@ -541,7 +536,7 @@ Cuantil 75% = `r c_75`
 
 ### Si nos dan una muestra de datos con tamaño muestra $n=250$ y nos dicen que siguen esta distribución, ¿qué número esperado tenemos de individuos que no habrán fallado a tiempo 1?
 
-Podemos responder a esta pregunta hallando el número de individuos que ha sobrevido mediante la función de supervivencia, $S(t)$ expresanda mediante la Ecuación $\eqref{eq:StEj1}$, y que es complementaria de $F(t) = P(T \leq t)$, para el instante, $t = 1$.
+Podemos responder a esta pregunta hallando el número de individuos que ha sobrevivido mediante la función de supervivencia, $S(t)$ expresada mediante la Ecuación $\eqref{eq:StEj1}$, y que es complementaria de $F(t) = P(T \leq t)$, para el instante, $t = 1$.
 
 
 ```{r}
@@ -638,9 +633,6 @@ f_km_estimator <- function(df,p_g){
                       group_by(time) %>% summarise(q_1f = n()) %>% ungroup
     
     df_merge = censored_g %>% left_join(df_km1, by=c('time')) %>% mutate(link=1)
-    #df_coinci = df_merge %>% filter(!is.na(failure))
-    #df_no_coinci = df_merge %>% filter(is.na(failure)) %>% mutate(link=1)
-    
     
     failures_g_t = data.frame(cbind(
                                 failures_g, 
@@ -871,35 +863,69 @@ ggsurvplot(fitAB, data = df,surv.median.line = "hv", legend.labs =c("A & B"))
 ### d) La vida media de cada grupo.
 
 
-El tiempo medio hasta el fallo que coincide con área encerrada entre la función $S(t)$ y el semieje horizontal $t$ en el intervalo $\left[0,\infty\right)$ [@UPC]. Lo podemos calcular mediante la fórmula del MTTF [@UPC].
+El tiempo medio hasta el fallo que coincide con área encerrada entre la función $S(t)$ y el semieje horizontal $t$ en el intervalo $\left[0,\infty\right)$ lo podemos calcular mediante la fórmula del MTTF [@UPC]:
 
+\begin{equation}\label{eq:MTTF2}
+  MTTF = \int_{0}^{\infty}S(t)dt
+\end{equation}
+
+
+A continuación mostramos la implementación manual en `R` de la vida media para ambos grupos, estimando esa integral  (ver Ecuación $\eqref{eq:MTTF2}$ ) a partir del área bajo la función escalonada, sumando los rectángulos que se forman, hasta el último tiempo.
 
 
 ```{r echo=TRUE}
-vida_mediaA = sum(df_A$S_1t)
+mA = data.frame(cbind(
+    df_A$time[1:length(df_A$time)-1],
+    df_A$time[2:length(df_A$time)],
+    df_A$S_1t[1:length(df_A$time)-1]))
+colnames(mA) = c("f_ini","f_fin","S_t")
+mA$dS_t = (mA$f_fin - mA$f_ini) * mA$S_t
+
+vida_mediaA = sum(mA$dS_t)
 ```
+
 
 La vida media del grupo A es `r vida_mediaA`.
 
 
-```{r echo=TRUE}
-vida_mediaB = sum(df_B$S_1t)
+```{r}
+mB = data.frame(cbind(
+    df_B$time[1:length(df_B$time)-1],
+    df_B$time[2:length(df_B$time)],
+    df_B$S_1t[1:length(df_B$time)-1]))
+colnames(mB) = c("f_ini","f_fin","S_t")
+mB$dS_t = (mB$f_fin - mB$f_ini) * mB$S_t
+
+vida_mediaB = sum(mB$dS_t)
 ```
 
-La vida media del grupo B es `r vida_mediaB`.
+De la misma manera que hemos calculado la vida media para el grupo A, lo hacemos para el grupo B, siendo la vida media éste último grupo `r vida_mediaB`.
+
+A continuación comprobamos que los datos calculados manualmente de la vida media de cada grupo nos coinciden con los calculados por la función `survfit` de  `R`.
+
+```{r comment=NA}
+print(fita, print.rmean=T)
+
+print(fitb, print.rmean=T)
+
+
+```
+
+
+
 
 ### e) Contrastad la hipótesis de igualdad de distribuciones por grupo. Utilizad todos los tests estudiados en la sección VI del Capítulo 2 de KK12. Interpretad y comparar los resultados (Indicación: puede usarse también el paquete de R $survMisc$)
 
 **Test Log-rank para 2 grupos**
 
-En este apartado describiremos y evaluaremos las equaciones para analizar si las curvas de Kaplan-Meier de los 2 grupos son estadísticamente equivalentes o no. Para ello, primero utilizaremos el metódo log-rank y después el resto de estadísticos alternativos. Útilizaremos el test de hipótesis para verificar si son significativamente similares o no. 
+En este apartado describiremos y evaluaremos las ecuaciones para analizar si las curvas de Kaplan-Meier de los 2 grupos son estadísticamente equivalentes o no. Para ello, primero utilizaremos el método log-rank y después el resto de estadísticos alternativos. Utilizaremos el test de hipótesis para verificar si son significativamente similares o no. 
 
-La hipotésis nula $H_{0}$ que es testada, es que no hay diferencias significativas entre las dos curvas de supervivencia.
+La hipótesis nula $H_{0}$ que es testada, es que no hay diferencias significativas entre las dos curvas de supervivencia.
 
-Bajo esta hipótesis nula, el estadístico es aproximadamente igual a $\chi^2$ con un grado de libertad. El p-valor se puede determinar a través de las tablas de la distribución de $\chi^2$ o traves de la función de `R:pchisq`. Usaremos el valor $5\%$ (p-valor<0.05) para determinar si observamos una desviación significativa.  Cualquier desviación mayor que este nivel nos haría rechazar la hipótesis nula. Es decir, si el valor calculado para $\chi^2$ es mayor que el valor crítico convenido, entonces rechazaremos la hipótesis nula, y si no, la aceptaremos.
+Bajo esta hipótesis nula, el estadístico es aproximadamente igual a $\chi^2$ con un grado de libertad. El p-valor se puede determinar a través de las tablas de la distribución de $\chi^2$ o través de la función de `R:pchisq`. Usaremos el valor $5\%$ (p-valor<0.05) para determinar si observamos una desviación significativa.  Cualquier desviación mayor que este nivel nos haría rechazar la hipótesis nula. Es decir, si el valor calculado para $\chi^2$ es mayor que el valor crítico convenido, entonces rechazaremos la hipótesis nula, y si no, la aceptaremos.
 
 
-A continuación se muestran las equaciones de manera general [@KleinbaumDavidG2005Sa],[@Kosinski],[@Dardis2018], incluyendo el peso $w_{f}$. 
+A continuación se muestran las ecuaciones de manera general [@KleinbaumDavidG2005Sa],[@Kosinski],[@Dardis2018], incluyendo el peso $w_{f}$. 
 
 Para el caso particular de Log-rank sería $w_{f}=1$ 
 
@@ -1052,7 +1078,7 @@ pv_chi = round(pchisq(chisqr, df=1, lower.tail=FALSE),3)
 
 Chi-square = `r chisqr` y 
 $P$ - Valor = Pr > $\chi^2$ = `r pv_chi`.
-Por lo tanto, según este test, aceptamos la hipótesis nula $H_O$, y podemos afirmar de manerar significativa que las curvas de los dos grupos A y B son similares.
+Por lo tanto, según este test, aceptamos la hipótesis nula $H_O$, y podemos afirmar de manera significativa que las curvas de los dos grupos A y B son similares.
 
 
 Calculamos el estadístico Log-rank   $\chi^2$ con $1$ grado de libertad bajo $H_0$
@@ -1072,7 +1098,7 @@ pv_lr = round(pchisq(test_lr, df=1, lower.tail=FALSE),3)
 
 Estadístico Log-rank = `r test_lr`, y 
 $p$-valor $= Pr > \chi^2 =$ `r pv_lr`. 
-Por lo tanto, según este test, aceptamos la hipótesis nula $H_O$, y podemos afirmar de manerar significativa que las curvas de los dos grupos A y B son similares.
+Por lo tanto, según este test, aceptamos la hipótesis nula $H_O$, y podemos afirmar de manera significativa que las curvas de los dos grupos A y B son similares.
 
 ```{r}
 fit <- survfit(Surv(time, failure) ~ group, data = df) 
@@ -1086,7 +1112,7 @@ ggsurvplot(fit, data = df, pval = TRUE, pval.method = TRUE,
 
 **Test alternativos a Log-rank para 2 grupos**
 
-Como está expuesto en la literatura [@Kosinski],[@Dardis2018], además del Long-rank hay un familia de test basada en las Equaciones $\eqref{eq:LRtest}$, $\eqref{eq:LRtestU}$ y $\eqref{eq:LRtestV}$, con los pesos $w_{f_{t}}$ descritos a continuación:
+Como está expuesto en la literatura [@Kosinski],[@Dardis2018], además del Long-rank hay un familia de test basada en las Ecuaciones $\eqref{eq:LRtest}$, $\eqref{eq:LRtestU}$ y $\eqref{eq:LRtestV}$, con los pesos $w_{f_{t}}$ descritos a continuación:
 
 
 * n Generalizada de Wilcoxon, $w_{t_{f}} = n_{t_{f}}$,
@@ -1184,7 +1210,7 @@ pv_w = round(pchisq(test_w, df=1, lower.tail=FALSE),3)
 
 Estadístico Wilcoxon = `r test_w`, y
 $p$-valor $= Pr > \chi^2 =$ `r pv_w`.
-Por lo tanto, según este test, aceptamos la hipótesis nula $H_O$, y podemos afirmar de manerar significativa que las curvas de los dos grupos A y B son similares.
+Por lo tanto, según este test, aceptamos la hipótesis nula $H_O$, y podemos afirmar de manera significativa que las curvas de los dos grupos A y B son similares.
 
 ```{r, include=FALSE}
 ggsurvplot(fit, data = df, pval = TRUE, pval.method = TRUE,
@@ -1210,7 +1236,7 @@ pv_tw = round(pchisq(test_tw, df=1, lower.tail=FALSE),3)
 
 Estadístico Tharone & Ware = `r test_tw`, y
 $p$-valor $= Pr > \chi^2 =$ `r pv_tw`.
-Por lo tanto, según este test, aceptamos la hipótesis nula $HO$, y podemos afirmar de manerar significativa que las curvas de los dos grupos A y B son similares.
+Por lo tanto, según este test, aceptamos la hipótesis nula $H_O$, y podemos afirmar de manera significativa que las curvas de los dos grupos A y B son similares.
 
 ```{r, include=FALSE}
 ggsurvplot(fit, data = df, pval = TRUE, pval.method = TRUE,
@@ -1244,7 +1270,7 @@ ggsurvplot(fit, data = df, pval = TRUE, pval.method = TRUE,
 
 Estadístico Peto = `r test_pp`, y
 $p$-valor $= Pr > \chi^2 =$ `r pv_pp`.
-Por lo tanto, según este test, aceptamos la hipótesis nula $H_O$, y podemos afirmar de manerar significativa que las curvas de los dos grupos A y B son similares.
+Por lo tanto, según este test, aceptamos la hipótesis nula $H_O$, y podemos afirmar de manera significativa que las curvas de los dos grupos A y B son similares.
 
 **Test de Peto modificado**
 
@@ -1262,7 +1288,7 @@ pv_pm = round(pchisq(test_pm, df=1, lower.tail=FALSE),3)
 
 Estadístico Peto modificado = `r test_pm`, y
 $p$-valor $= Pr > \chi^2 =$ `r pv_pm`.
-Por lo tanto, según este test, aceptamos la hipótesis nula $H_O$, y podemos afirmar de manerar significativa que las curvas de los dos grupos A y B son similares.
+Por lo tanto, según este test, aceptamos la hipótesis nula $H_O$, y podemos afirmar de manera significativa que las curvas de los dos grupos A y B son similares.
 
 ```{r, include=FALSE}
 ggsurvplot(fit, data = df, pval = TRUE, pval.method = TRUE,
@@ -1288,7 +1314,7 @@ pv_fh_11 = round(pchisq(test_fh_11, df=1, lower.tail=FALSE),3)
 
 Estadístico Fleming-Harrington (p=1,q=1) = `r test_fh_11`, y
 $p$-valor $= Pr > \chi^2 =$ `r pv_fh_11`.
-Por lo tanto, según este test, aceptamos la hipótesis nula $H_O$, y podemos afirmar de manerar significativa que las curvas de los dos grupos A y B son similares.
+Por lo tanto, según este test, aceptamos la hipótesis nula $H_O$, y podemos afirmar de manera significativa que las curvas de los dos grupos A y B son similares.
 
 En la Tabla \@ref(tab:tfh), vemos los resultados del test Fleming-Harrington para p=9, p=3. 
 
@@ -1303,7 +1329,7 @@ pv_fh = round(pchisq(test_fh, df=1, lower.tail=FALSE),3)
 
 Estadístico Fleming-Harrington ($p=9$,$q=3$) = `r test_fh`, y
 $p$-valor $= Pr > \chi^2 =$ `r pv_fh`.
-Por lo tanto, según este test, aceptamos la hipótesis nula $H_O$, y podemos afirmar de manerar significativa que las curvas de los dos grupos A y B son similares. Cabe destacar, que con estos parámetros selecciónados ($p=9$, $p=3$) obtenemos un valor para el estadístico menor, que el calculado par el mismo estadístico con los parametros ($p=9$, $p=3$)
+Por lo tanto, según este test, aceptamos la hipótesis nula $H_O$, y podemos afirmar de manera significativa que las curvas de los dos grupos A y B son similares. Cabe destacar, que con estos parámetros seleccionados ($p=9$, $p=3$) obtenemos un valor para el estadístico menor, que el calculado par el mismo estadístico con los parámetros ($p=1$, $p=1$)
 
 ```{r, include=FALSE}
 ggsurvplot(fit, data = df, pval = TRUE, pval.method = TRUE,
@@ -1334,20 +1360,22 @@ kable(df_sum, booktabs = T, caption = "Resultados para el Log-rang y otros tests
 
 ```
 
-Utilizando las funciones `Surv`, `survfit` y  `comp` de `R` vemos que son los mismos a los obtenidos manualmente (ver Tabla \@ref(tab:talltests)).
+Utilizando las funciones `Surv`, `survfit` y  `comp` de `R` vemos que los resultados obtenidos son los mismos a los obtenidos manualmente (ver Tabla \@ref(tab:talltests)).
 
 ```{r comment=NA}
 fit = survfit(Surv(time, failure) ~ group, data = df)
 comp(ten(fit))
 ```
 
-Viendo la Tabla \@ref(tab:talltests) de resultados final, podemos decir que todos los tests dan un p-valor que indica que la hipóstesis nula $H_0$ debería de ser aceptada, por lo que podemos afirmar de manerar significativa que las curvas de los dos grupos A y B son similares. No obstante, parece claro que el conjunto de datos estudio no es muy elevado.
+Viendo la Tabla \@ref(tab:talltests) de resultados final, podemos decir que todos los test dan un p-valor que indica que la hipótesis nula $H_0$ debería de ser aceptada, por lo que podemos afirmar de manera significativa que las curvas de los dos grupos A y B son similares. No obstante, parece claro que el conjunto de datos estudio no es muy elevado.
 
 
 
 # Anexos
 
-https://github.com/azenzano/SurvivalAnalysis.git (last version: 2022/04/10)
+En este apartado incluimos una referencia mediante un enlace a github (repositorio web de código), donde se puede consultar y descargar el código `R` utilizado en el presente trabajo.
+
+https://github.com/azenzano/SurvivalAnalysis.git (last version: 2022/04/11)
 
 # References
 
