@@ -502,7 +502,7 @@ resolvemos la ecuación de segundo grado con la siguiente fórmula, considerando
 
 ```{r}
 f_cuadratica <- function(a,b,c){
-  #con quedamos con la parte positiva (t >= 0)
+  #nos quedamos con la parte positiva (t >= 0)
   x = (-b+(sqrt(b^2-(4*a*c))))/(2*a)
   return (x)
 }
@@ -548,18 +548,6 @@ S(t=1) =  `r S1`
 
 Por tanto, el número de supervivientes es $= 250 * S(t=1) = 250 *$  `r S1` $=$ `r nS1`
 
-
-```{r}
-#df1
-```
-
-
-
-
-
-
-
-
 # Nos dan el siguiente conjunto de 10 datos de supervivencia, donde el signo + indica censura por la derecha:
 
 
@@ -572,19 +560,11 @@ Por tanto, el número de supervivientes es $= 250 * S(t=1) = 250 *$  `r S1` $=$ 
 
 ### El estimador de Kaplan-Meier global y separado para cada grupo.
 
-```{r}
-#dt <- fread("ejem.csv")
-#(dt)
-```
 
 Creamos una tabla con los datos de partida del enunciado (ver Tabla \@ref(tab:tsuperini)).
 
 ```{r tsuperini}
 #Crear tabla con los datos de partida del enunciado
-#
-# groupA = c("6","6","6","7","10","13","16","22","23","6+","9+","10+","11+","17+","19+","20+","25+","32+","32+","34+","35+")
-# groupB = c("1","1","2","2","3","4","4","5","5","8","8","8","8","11","11","12","12","15","17","22","23")
-
 groupA = c("11.2","14.1+","17.0","12.8","5.3+")
 groupB = c("14.9", "21.1", "7.1+", "18.7+", "19.4+")
 
@@ -598,7 +578,6 @@ df = data.frame(rbind(groupA,groupB)) %>%
           mutate(failure = if_else(str_detect(time, "[+]"),0,1)) %>%
           mutate(time = gsub('[+]', '', time)) %>%
           mutate(time = as.numeric(time)) %>%
-          #dplyr::arrange(time) %>%
           select(time,failure,group)
           
 
@@ -840,7 +819,6 @@ En la Figura \@ref(fig:fAllCI), vemos el gráfico con las estimaciones, el valor
 ```{r fAllCI, fig.cap = "Kaplan-Meier: función de supervivencia S(t) con los intervalos de confianza al 95\\%, población completa.", fig.width=5, fig.height=4}
 fit <- survfit(Surv(time = time, event = failure) ~ group, data = df, conf.type="plain")
 ggsurvplot(fit, data = df, pval = TRUE, conf.int = TRUE,surv.median.line = "hv",
-          #palette = c("#E7B800", "#2E9FDF"),            
           xlab="Tiempo", ylab="S(t)", 
           font.legend = c(9),font.tickslab = c(9),fontsize = c(9),font.x = c(9), font.y = c(9),pval.size = c(3),
           title="", legend.title = "Grupos", legend.labs =c("A", "B"))
