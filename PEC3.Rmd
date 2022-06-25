@@ -1,0 +1,1397 @@
+---
+title: 'Análisis de Supervivencia'
+subtitle: 'PEC3'
+author: "Ager Zenzano Sarasola - UOC"
+date: "5 de junio de 2022"
+output:
+  bookdown::pdf_document2:
+     keep_tex: no #se puede poner yes
+     number_sections: yes
+     toc: False #list of content
+     toc_depth: 3
+     fig_caption: yes
+     fig_height: 3.8
+     fig_width: 6.0
+bibliography: bibliography.bib     
+link-citations: yes
+figurelist: yes
+header-includes:
+- \usepackage{mathrsfs}       # To include mathsrc fonts
+- \usepackage{float}          # To insert figures caption
+- \floatplacement{figure}{H}  # To insert figures caption
+- \floatplacement{table}{H}
+- \usepackage{xcolor}
+- \usepackage{framed}
+- \usepackage{fancyhdr}
+- \pagestyle{fancy}
+- \fancyhf{}
+- \fancyhead[CE,CO]{\leftmark}
+- \fancyfoot[LE,RO]{\thepage}
+- \usepackage[ruled,vlined,linesnumbered]{algorithm2e}
+- \usepackage{amsmath} 
+- \usepackage[format=plain,labelfont={bf,it},labelfont={color=blue},textfont=it]{caption}
+- \usepackage[backend=biber, style=alphabetic, citestyle=authortitle]{biblatex}
+- \usepackage{sectsty}
+- \sectionfont{\clearpage}
+- \usepackage{sectsty} # a pagebreak for every top level heading
+- \sectionfont{\clearpage} #a pagebreak for every top level heading
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message = FALSE,  comment=NA)
+```
+
+```{r}
+library(nlme)
+
+library(reshape)
+library(tidyr)
+library(dplyr)
+library(nlmeU)
+library(lattice)
+
+library("knitr")
+
+library(lattice)
+library(kableExtra)
+library(gridExtra)
+
+```
+
+
+
+# INTRODUCCIÓN
+
+Consideraremos un subconjunto personal del dataset ARMD para cada estudiante, formado por la información de 150 individuos escogidos aleatoriamente del dataset original `armd.wide`. 
+
+El dataset personal se obtendrá a partir de las dos últimas cifras del NIF del estudiante (xx), siguiendo las siguientes indicaciones:
+
+* Fijar la semilla aleatoria a partir del valor xx `(set.seed(xx))`
+
+* Muestrear 150 valores entre los subíndices 1 a 240 `(sample(1:240,150))` y
+
+* Seleccionar los individuos con los subíndices obtenidos para construir nuestro dataframe de interés a partir de la variable `subject` de `armd.wide`.
+
+
+## Caso de estudio: Datos de partida y preporocesado
+
+El conjunto de datos Age-Related Macular Degeneration (ARMD), son datos de unas pruebas realizadas a unos pacientes con ARMD, unos tomando un medicamento y otros placebo. Los pacientes con degeneración macular pierden progresivamente la visión, por ello, la agudeza visual de los pacientes fue el indicador elegido para medir la evolución de los individuos que participaban en el estudio. 
+
+El conjunto de datos resultante es un caso de estudio de datos longitudinales con observaciones agrupadas por sujetos que recoge la agudeza visual de 240 pacientes, en un primer momento como medida de base inicial, y en cuatro momentos puntuales diferente; a las 4, 12, 24, 52 semanas.
+
+A continuación, cargamos en memoria los datos del conjunto `armd.wide` con los que empezaremos a trabajar.
+
+```{r echo=TRUE}
+data(armd.wide, package = "nlmeU")
+```
+
+En este primer conjunto de datos que cargamos, hay 240 observaciones (todavía no hemos realizado la selección de los 150 individuos conformarán la muestra de estudio) y 10 variables:
+```{r}
+names(armd.wide)
+```
+
+* `subject`: contiene la identificación de los pacientes. 
+
+* `lesion`, `line0`: contienen información adicional que no se estudia en el presente trabajo.
+
+* `visual4`, `visual12`, `visual24`, `visual52`: almacenan la agudeza visual medida en los pacientes a las 4, 12, 24, y 52 semanas.
+
+* `treat.f`: contiene el tratamiento realizado.
+
+* `miss.pat`: es una nueva variable que está incluida en el paquete `nlmeU` de `R`, y que no estaba incluida en el conjunto de datos inicial `armd240.data.csv`. Esta variable de tipo de cadena de caracteres, almacena el patrón de la falta de información de los cuatro instantes de mediciones realizadas. Esta nueva variable se puede obtener a partir del conjunto de datos original mediante la sentencia de `R` `nlmeU:::missPat` utilizando como fuente de datos las variables visual4-52 de la mediciones de la agudeza visual. Por ejemplo, un patrón igual a '--XX' significa que no hay información de medida en las semanas 24 y 52. En cambio, cuando el patrón es igual a '----', quiere decir que no hay falta de información y que se ha medido la agudeza visual del paciente en los cuatro instantes posteriores a la primera toma de base.
+
+Después de cargar los datos, renombramos las columnas del conjunto de datos cargado para asemejarlo al conjunto de datos de [@AndrzejGalecki2013].
+
+```{r echo=TRUE}
+armd.wide_ <- armd.wide
+newnames <- c("subject","lesion", "line0", "Baseline",
+              "4wks", "12wks","24wks","52wks",
+              "treat.f","miss.pat")
+colnames(armd.wide) <- newnames
+armd.wide <- armd.wide %>% mutate(visual0=Baseline)
+str(armd.wide)
+```
+
+Tras la salida obtenida a partir de la función `str()`, podemos decir que las variables `subject`, `treat.f` y `miss.pat` son factores y el resto de variables son variables enteras. Cabe señalar además, que en este conjunto de datos hay respecto al conjunto de datos inicial una variables más, `visual0`. Esta variable se ha añadido a partir de la variable `Baseline` para mantenerla como variable a analizar durante todo el estudio.
+
+Siguiendo el enunciado, a continuación, establecemos un conjunto de datos de 150 unidades que utilizaremos para seleccionar y crear de manera aleatoria la muestra de estudio del presente trabajo a partir del conjunto de datos `armd.wide`.
+
+```{r echo=TRUE}
+set.seed(30)
+poblacion <- (sample(1:240,150)) 
+#selección de la muestra de estudio: 150 individuos elegidos aleatoriamente
+armd.wide_ <- armd.wide %>% filter(subject %in% poblacion)
+armd.wide <- armd.wide_ 
+```
+
+A continuación, transformamos el conjunto de datos de formato apaisado `armd.wide` a formato longitudinal mediante la función `menlt()` y lo denominamos `armd0_`
+
+```{r echo=TRUE}
+armd0_ <- melt(armd.wide, id.vars = c(1,9,11,10), measure.vars = 4:8)
+colnames(armd0_) <- c("subject","treat.f","visual0","miss.pat","time.f","visual")
+armd0_$time.f <- factor(armd0_$time.f, 
+                        ordered = TRUE, 
+                        levels = c("Baseline","4wks", "12wks","24wks","52wks"))
+```
+
+Comprobamos el conjunto de datos `armd0_` creado respecto al `armd0` original para ver que efectivamente la re-estructuración de los datos de la forma apaisada a la longitudinal se ha realizado correctamente.
+
+```{r echo=TRUE}
+armd0$ide <- 1
+bands2 <- left_join(armd0_, armd0, by = c('subject','time.f'))
+head(bands2)
+```
+
+Una vez hemos consolidado los datos de manera longitudinal, modificamos las variables del conjunto de datos `armd0_` obtenido para asemejarlo al conjunto de datos `armd0` de [@AndrzejGalecki2013], y una vez comprobado lo renombramos ya como `armd0`.
+
+```{r echo=TRUE}
+armd0 <- armd0_ %>% 
+            mutate(tp=case_when(time.f == "Baseline" ~ 0,
+                                  time.f == "4wks" ~ 1,
+                                  time.f == "12wks" ~ 2,
+                                  time.f == "24wks" ~ 3,
+                                  TRUE ~ 4)) %>% 
+            mutate(time=case_when(time.f == "Baseline" ~ 0,
+                                  time.f == "4wks" ~ 4,
+                                  time.f == "12wks" ~ 12,
+                                  time.f == "24wks" ~ 24,
+                                  TRUE ~ 52))  %>% 
+            mutate("1"=if_else(substr(miss.pat,1,1)=="X",0,1),
+                   "2"=if_else(substr(miss.pat,2,2)=="X",0,1),
+                   "3"=if_else(substr(miss.pat,3,3)=="X",0,1),
+                   "4"=if_else(substr(miss.pat,4,4)=="X",0,1)) %>%
+            mutate(filtro=case_when((tp == "1" & `1` == 0) ~ 1,
+                                    (tp == "2" & `2` == 0) ~ 1,
+                                    (tp == "3" & `3` == 0) ~ 1,
+                                    (tp == "4" & `4` == 0) ~ 1,
+                                    TRUE ~ 0)) %>%
+            filter(filtro==0) %>%
+            select(subject, treat.f, visual0, miss.pat, time.f, time, visual, tp)
+```
+
+Tras estas modificaciones sobre la estructura de datos original vemos que ha aparecido una nueva variable numérica `tp`, la cual indica la posición particular de cada medida tomada: 0 = base, 4 = semana 52. Además, cabe destacar que las variables: `subject`, `treat.f` y `visual0` son referidas como variables `tiempo-fijo`, mientras que las variables `time`, `tp` y `visual` son llamadas como `tiempo-variable`.
+
+El conjunto de datos en formato longitudinal `armd`, lo formamos a partir del conjunto en formato también longitudinal `armd0` omitiendo los registros correspondientes a la base de referencia o "baseline". No obstante la medición inicial de cada individuo ya la tenemos representada en la variable `visual0`.
+
+```{r echo=TRUE}
+armd <- subset(armd0, time > 0)
+```
+
+## Explaración de los datos
+
+Después de haber pre-procesado los datos en la sección anterior, ahora como primera exploración, echamos un vistazo a las métricas del conjunto de datos con un "spaghetti plot" (ver Figura \@ref(fig:pSpaghetti)) y analizamos la agudeza visual de algunos de los pacientes (seleccionado cada diez pacientes) frente al tiempo, separado por los dos grupos de tratamiento: `Placebo` y `Activo`.
+
+```{r pSpaghetti, fig.cap = "Ensayo ARMD: Perfiles de agudeza visul de los pacientes seleccionados (spaghetti plot).", fig.width=6, fig.height=3.8}
+armd0.subset <- subset(armd0, as.numeric(subject) %in% seq(1,240, 10))
+xy1 <- xyplot(visual ~ jitter(time) | treat.f,
+               groups = subject,
+               data = armd0.subset,type = "l", lty = 1)
+update(xy1, xlab = "Tiempo (en semanas)", ylab = "Agudeza visual", grid = "h")
+```
+
+Sobre esta exploración inicial, en la Figura \@ref(fig:pSpaghetti) podemos ver los perfiles de agudeza visual de los pacientes seleccionados del ensayo, en general, y observamos que que la agudeza visual en ambos grupos disminuye según avanza el tiempo. En el grupo `Active` vemos que no todos los individuos realizan las 4 mediciones posteridades a la medición inicial, y también apreciamos que las trayectorias oscilan más que en el grupo de `Placebo`.
+
+Para comprobar la falta de mediciones podemos utilizar la variable `miss.pat` del conjunto de datos `armd.wide`.
+
+
+```{r echo=TRUE}
+t_mispat <- data.frame(table(armd.wide$miss.pat))
+```
+
+En la Tabla \@ref(tab:tParres) se puede apreciar que para 119 pacientes se obtuvieron las 4 muestras posteriores a la muestra de base tomada al inicio de estudio. Es decir, como cabía esperar, un ratio `119/150 = 0.79` similar al visto `180/240 = 0.78` en [@AndrzejGalecki2013]. Además, podemos comprobar que en total salen los 150 individuos iniciales seleccionados aleatoriamente para la muestra.
+
+
+```{r tParres}
+colnames(t_mispat) <- c("Patrón", "#")
+kable(t(t_mispat), booktabs = T, caption = "Ensayo ARMD: Inspección de los patrones de datos faltantes de las medidas de agudeza visual tomadas en los cuatro ocasiones y almacenadas en el conjunto de datos armd.wide.")
+```
+
+```{r echo=TRUE}
+flst <- list(armd0$time.f, armd0$treat.f)
+tN <- tapply(armd0$visual, flst, FUN = function(x) length(x[!is.na(x)]))
+```
+
+En la Tabla \@ref(tab:tCountpat) se puede ver el conteo de las medidas de la agudeza visual agudeza visual no faltantes para cada grupo de estudio. También, vemos que en la medida inicial de base no falta ningún individuo sin tomar medida. En cambio, en ambos grupos según avanza el tiempo en número de individuos que se toman la medida va disminuyendo. La diferencia entre grupos pasa a ser notable en el último instante de medida, a las 52 semanas, donde el grupo activo tan solo toma medida de la agudeza visual a 58 individuos.
+
+```{r tCountpat}
+kable(tN, booktabs = T, caption = "Ensayo ARMD: Conteo por tiempo de las medidas de la agudeza visual no faltantes para cada grupo: Placeo y Active.")
+```
+
+```{r, echo=TRUE, results='hide'}
+tMn <- tapply(armd0$visual, flst, FUN = mean)
+tMd <- tapply(armd0$visual, flst, FUN = median)
+colnames(res <- cbind(tN, tMn, tMd))
+nms1 <- rep(c("P", "A"), 3)
+nms2 <- rep(c("n", "Mean", "Mdn"), rep(2, 3))
+colnames(res) <- paste(nms1, nms2, sep = ":")
+```
+
+En la Tabla \@ref(tab:tRes) se puede ver como en ambos grupos según avanza el tiempo las medias y medianas de la agudeza visual disminuyen, 7 unidades más en el grupo `Activo` que en el `Placebo`.
+
+```{r tRes}
+kable(res, booktabs = T, caption = "Ensayo ARMD: medias y medianas de la muestra para la agudeza visual por tiempo y tratamiento.")
+```
+
+En la Figura \@ref(fig:pBoxplot) se puede ver representada la agudeza visual en cada punto de medición y por grupo de estudio: `Placeo` y `Active`. Este gráfico, ilustra lo que habíamos visto en la Tabla \@ref(tab:tRes), es decir, que la medias y medianas disminuyen según avanza el tiempo, especialmente en el grupo `Active` y en la semana 52.
+
+```{r pBoxplot, fig.cap = "Ensayo ARMD: Agudeza visual por tratamiento y tiempo.",fig.width=5.8, fig.height=3.6}
+bw1 <- bwplot(visual ~ time.f | treat.f, data = armd0)
+xlims <- c("Base", "4\nwks", "12\nwks", "24\nwks", "52\nwks")
+update(bw1, xlim = xlims, pch = "|")
+```
+
+Ahora con el el objetivo de analizar los patrones de datos faltantes, empezamos definiendo cuales son los posibles patrones monótonos:
+```{r echo=TRUE}
+mnt.pat<-c("----", "---X", "--XX", "-XXX", "XXXX")
+```
+
+
+```{r echo=TRUE}
+armd.wide.mnt <- subset(armd.wide, miss.pat %in% mnt.pat)
+n_mnt_pat <- dim(armd.wide.mnt)[1]
+```
+
+Existen `r n_mnt_pat` pacientes con patrón monótono en el conjunto de datos de estudio.
+
+Ahora si removemos los niveles de la variable `miss.pat` quedaría de la siguiente manera:
+```{r echo=TRUE}
+armd.wide.mnt1 <-
+  within(armd.wide.mnt,
+           {
+            miss.pat <- factor(miss.pat, levels = mnt.pat)
+           })
+levels(armd.wide.mnt1$miss.pat)
+```
+
+
+
+```{r}
+tt_pati <-with(armd.wide.mnt1,
+            {
+              fl <- list(treat.f, miss.pat)
+              tapply(subject, fl, FUN=function(x) length(x[!is.na(x)]))
+            })
+```
+
+En Tabla \@ref(tab:tRes) mostramos el número de pacientes con patrones de datos faltantes monótono.
+
+```{r tMisspati}
+kable(tt_pati, booktabs = T, caption = "Ensayo ARMD: El número de pacientes con patrones de datos faltantes monótono.")
+```
+
+```{r echo=TRUE}
+visual.x <- subset(armd.wide, select = c('Baseline','4wks','12wks','24wks','52wks'))
+varx <- var(visual.x, use="complete.obs")
+```
+
+```{r echo=TRUE}
+corx <- round(cor(visual.x, use = "complete.obs"),2)
+```
+
+
+
+En las Tablas \@ref(tab:tVar) y \@ref(tab:tCor)  vemos la matriz de varianza-covarianza, y la correlación de la medida de agudeza visual para aquellos pacientes con la cuatro medidas tomadas. Mediante la función `diag()` podemos obtener los elementos de la diagonal de la matriz.
+
+```{r tVar}
+kable(varx, booktabs = T, caption = "Ensayo ARMD: Matriz de varinza covarianza de la medida de agudeza visual para aquellos pacientes con la cuatro medidas tomadas.")
+```
+
+
+```{r tCor}
+kable(corx, booktabs = T, caption = "Ensayo ARMD: Matriz de correlaciones de la medida de agudeza visual para aquellos pacientes con la cuatro medidas tomadas.")
+```
+
+
+En la Figura \@ref(fig:pPanelcor) podemos ver que cuanto mayor es la distancia entre las mediciones en el tiempo menor es la correlación entre la agudeza visual medida.
+
+```{r pPanelcor, fig.cap = "Ensayo ARMD: Grafico de puntos para las medidas de agudeza visual en la parte inferior. En la diagonal el tiempo de medición, y en la parte superior los estadísticos de correlación p-valor y nº de pacientes.",fig.width=6.6, fig.height=6.6}
+panel.cor <- function(x, y, cex.cor = 0.8, method = "pearson", ...) {
+  options(warn = -1)                   
+  usr <- par("usr"); on.exit(par(usr))
+  par(usr = c(0, 1, 0, 1))
+  r <- cor(x, y, method = method, use = "pair")         
+  p <- cor.test(x, y, method = method)$p.val                 
+  n <- sum(complete.cases(x, y))                         
+  txt <- format(r, digits = 3)                               
+  txt1 <- format(p, digits = 3)                               
+  txt2 <- paste0("r= ", txt, '\n', "p= ", txt1, '\n', 'n= ', n) 
+  cex.cor <- 0.8/strwidth(txt2)
+  text(0.5, 0.5, txt2, cex = cex.cor*r, ...)    
+  options(warn = 0)                                    
+
+}
+
+pairs(armd.wide[4:8], pch=21, bg=rainbow(3)[unclass(armd.wide$treat.f)], 
+      lower.panel = panel.smooth, upper.panel = panel.cor)
+```
+
+# MODELOS
+
+En este apartado se estudian diferentes modelos lineales con efectos mixtos (LMM: Linear Mixec-Effects Model) [@AndrzejGalecki2013]. Estos modelos permiten un análisis de datos jerárquicos y continuos, permitiendo tener en cuenta la correlación entre las observaciones. Esta clase de modelos, denominados como sujeto especifico, o "subject-specific" permiten incluir coeficientes por sujeto estudiado. Para ser más específicos, en el presente trabajo, la jerarquía de los datos que estudiamos tiene un único nivel de agrupación:
+
+\begin{equation}\label{eq:eqAhr}
+y_i =Xi\beta+Z_{i}b_{i}+\epsilon_{i},
+\end{equation}
+
+donde $y_{i}$, $X_{i}$, $\beta$, and $\epsilon_{i}$ son el vector respuesta (continuo), la matriz de diseño y el vector de los errores residuales para el grupo $i$ respectivamente. $Z_{i}$ la matriz de covariantes, el vector de efectos aleatorios, 
+
+\begin{equation}\label{eq:eqModel}
+b_{i} \sim \mathscr{N}_{q}(0,\mathscr{D}) \text{ , } \epsilon_{i} \sim \mathscr{N}_{ni}(0,\mathscr{R}_{i})  \text{ y } b_{i} \perp \epsilon{i},
+\end{equation}
+
+siendo  $\sigma^2$ un parámetro de escala desconocido y asumiendo que $\mathscr{D}$ y $\mathscr{R}$ son definidas positivas [@AndrzejGalecki2013]:
+
+\begin{equation}\label{eq:eqDR}
+  \mathscr{D} = \sigma^{2}D \text{ y } \mathscr{R}_{i} = \sigma^{2} R_{i}.
+\end{equation}
+
+La representación de la Ecuación \eqref{eq:eqDR} no es única, no obstante, es importante destacar que nosotros especificaremos la estructura de $R_{i}$ en términos de un conjunto de parámetros para la función de varianza y una matriz de correlación [@AndrzejGalecki2013].
+
+* MODELO M16.1
+
+La construcción de este modelo parte del modelo marginal M12.3 [@AndrzejGalecki2013] (12.8), 
+
+
+\begin{equation}\label{eq:eqM161}
+  VISUAL_{it} = \beta_{0} + \beta_{1} \times VISUAL_{0i} + \beta_{2} \times TIME_{t} + \beta_{3} \times TREAT_{i} + \beta_{4} \times TIME_{t} \times TREAT_{i} + \epsilon_{it}.
+\end{equation}
+
+al que en la parte fija se le añade la interacción entre covariantes `TREAT` x `TIME`, [@AndrzejGalecki2013] (16.1),
+
+\begin{equation}\label{eq:eqAhr}
+  VISUAL_{it} = \beta_{0} + \beta_{1} \times VISUAL0_{i} + \beta_{2} \times TIME_{it} + \beta_{3} \times TREAT_{i} + \beta_{4} \times TREAT_{i} \times TIME_{it} + b_{0i} + \epsilon_{it}.
+\end{equation}
+
+Además, en la parte de efectos aleatorios añadimos el intercepto aleatorio sujeto-específico, $b_{0i}$ asumiendo que es $N(0,d_{1,1})$, y que los errores residuales aleatorios, $\epsilon_{it}$ son $N(0,\sigma^2)$. Cabe señala que $b_{0i}$ es una *desviación* específica para cada sujeto respecto al intercepto fijo $\beta_{0}$.
+
+```{r echo=TRUE}
+lm2.form <- formula(visual ~ visual0 + time + treat.f + treat.f:time)
+fm16.1 <-lme(lm2.form, random = ~1|subject, data = armd)
+```
+
+```{r, results='hide'}
+fm16.1$call
+```
+
+```{r}
+fm16.1_sum = summary(fm16.1)
+fm16.1_int = intervals(fm16.1, which = "var-cov")
+```
+
+A continuación, vemos la fórmula utilizada, y en la Tabla \@ref(tab:tM161fix) los coeficientes y estadísticos estimados para los efectos fijos del modelo M16.1.
+
+```{r}
+formula(fm16.1)
+```
+
+```{r, results='hide'}
+fm16.1_sum_T = printCoefmat(fm16.1_sum$tTable,has.Pvalue = TRUE, P.values = TRUE)
+```
+
+```{r tM161fix}
+kable(fm16.1_sum_T, booktabs = T, caption = "Ensayo ARMD: Coeficientes y estadísticos de los efectos fijos del modelo M16.1.")
+```
+
+Efectos aleatorios:
+```{r}
+fm16.1_sum$modelStruct$reStruct
+```
+
+```{r}
+
+#Log-REML value
+fm16.1_loglik = round(fm16.1_sum$logLik,2)
+#Fixed effects
+fm16.1_b_0 = paste0(round(fm16.1_sum$tTable[1],2),"(",round(fm16.1_sum$tTable[6],2),")")
+fm16.1_b_1 = paste0(round(fm16.1_sum$tTable[2],2),"(",round(fm16.1_sum$tTable[7],2),")")
+fm16.1_b_2 = paste0(round(fm16.1_sum$tTable[3],2),"(",round(fm16.1_sum$tTable[8],2),")")
+fm16.1_b_3 = paste0(round(fm16.1_sum$tTable[4],2),"(",round(fm16.1_sum$tTable[9],2),")")
+fm16.1_b_4 = paste0(round(fm16.1_sum$tTable[5],2),"(",round(fm16.1_sum$tTable[10],2),")")
+#standar deviation sqrt(d11) of random intercept
+fm16.1_SD_bi0 = round(sqrt(as.numeric(VarCorr(fm16.1)[1])),2) #d11
+fm16.1_SD_bi1 ="" #d22
+fm16.1_SD_q12 = "" #cor Q12
+
+#Variance function
+fm16.1_varfun = ""
+if(!is.null(fm16.1_int$varStruct)){
+  fm16.1_varfun = paste0(round(fm16.1_int$varStruct[[2]],2),"(",
+                         round(fm16.1_int$varStruct[[1]],2),",",
+                         round(fm16.1_int$varStruct[[3]],2),")")
+}
+#scale
+fm16.1_int = intervals(fm16.1, which = "var-cov")
+fm16.1_scale = paste0(round(fm16.1_int$sigma[[2]],2),"(",round(fm16.1_int$sigma[[1]],2),",",round(fm16.1_int$sigma[[3]],2),")")
+
+```
+
+* MODELO M16.2
+
+En este modelo hacemos uso de los mismos efectos fijos que en el modelo M16.1 (ver Ecuación \eqref{eq:eqM161}), pero modificamos la estructura de varianza-covarianza de los errores residuales aleatorios.
+
+Para agregar la estructura de varianza-covarianza de los errores residuales aleatorios utilizamos la función `varPower()` sobre la covaiante `TIME`. Por tanto, asumimos que  $\mathscr{R}_{i}$ es una matriz diagonal con elementos diferentes:
+
+\begin{equation}\label{eq:eqM161R}
+  \mathscr{R}_{i}=  \sigma^2
+  \left(\begin{array}{cccc} 
+  (TIME_{i1})^{2\delta} & 0 & 0 & 0\\ 
+  0 & (TIME_{i2})^{2\delta} & 0 & 0\\ 
+  0 & 0 & (TIME_{i3})^{2\delta} & 0\\
+  0 & 0 & 0 & (TIME_{i4})^{2\delta}
+  \end{array}\right)
+\end{equation}
+
+```{r echo=TRUE}
+fm16.2 <- update(fm16.1, weights = varPower(form = ~ time), data = armd)
+```
+
+```{r, results='hide'}
+fm16.2$call
+```
+
+```{r}
+fm16.2_sum = summary(fm16.2)
+fm16.2_int = intervals(fm16.2, which = "var-cov")
+```
+
+A continuación, vemos la fórmula utilizada, y en la Tabla \@ref(tab:tM162fix) los coeficientes y estadísticos estimados para los efectos fijos del modelo M16.2.
+
+```{r}
+formula(fm16.2)
+```
+
+```{r, results='hide'}
+fm16.2_sum_T = printCoefmat(fm16.2_sum$tTable,has.Pvalue = TRUE, P.values = TRUE)
+```
+
+```{r tM162fix}
+kable(fm16.2_sum_T, booktabs = T, caption = "Ensayo ARMD: Coeficientes y estadísticos de los efectos fijos del modelo M16.2.")
+```
+
+Efectos aleatorios:
+```{r}
+fm16.2_sum$modelStruct$reStruct
+```
+
+```{r}
+fm16.2_sum = summary(fm16.2)
+fm16.2_int = intervals(fm16.2, which = "var-cov")
+#Log-REML value
+fm16.2_loglik = round(fm16.2_sum$logLik,2)
+#Fixed effects
+fm16.2_b_0 = paste0(round(fm16.2_sum$tTable[1],2),"(",round(fm16.2_sum$tTable[6],2),")")
+fm16.2_b_1 = paste0(round(fm16.2_sum$tTable[2],2),"(",round(fm16.2_sum$tTable[7],2),")")
+fm16.2_b_2 = paste0(round(fm16.2_sum$tTable[3],2),"(",round(fm16.2_sum$tTable[8],2),")")
+fm16.2_b_3 = paste0(round(fm16.2_sum$tTable[4],2),"(",round(fm16.2_sum$tTable[9],2),")")
+fm16.2_b_4 = paste0(round(fm16.2_sum$tTable[5],2),"(",round(fm16.2_sum$tTable[10],2),")")
+
+#standar deviation sqrt(d11) of random intercept
+fm16.2_SD_bi0 = round(sqrt(as.numeric(VarCorr(fm16.2)[1])),2) #d11
+fm16.2_SD_bi1 ="" #d22
+fm16.2_SD_q12 = "" #cor Q12
+
+
+#Variance function
+fm16.2_varfun = paste0(round(fm16.2_int$varStruct[[2]],2),"(",
+                       round(fm16.2_int$varStruct[[1]],2),",",
+                       round(fm16.2_int$varStruct[[3]],2),")")
+#scale
+fm16.2_scale = paste0(round(fm16.2_int$sigma[[2]],2),"(",
+                      round(fm16.2_int$sigma[[1]],2),",",
+                      round(fm16.2_int$sigma[[3]],2),")")
+
+```
+
+
+* MODELO M16.3
+
+Construimos este modelo basándonos en [@AndrzejGalecki2013] (16.10), con matriz varianza-covarianza general $\mathscr{D}$ asumiendo que el intercepto y las pendientes están correlacionadas. 
+
+\begin{equation}\label{eq:eqAhr}
+  \mathscr{D}= 
+  \left(\begin{array}{cc} 
+  d_{11} & d_{12}\\ 
+  d_{21} & d_{22}
+  \end{array}\right),
+\end{equation}
+
+\begin{equation}\label{eq:eqM163}
+  VISUAL_{it} =\beta_{0} + \beta_{1} \times VISUAL_{0i} + \beta_{2} \times TIME_{it} + \beta_{3} \times TREAT_{i} + \beta_{4} \times TREAT_{i} \times TIME_{it} + b_{0i} + b_{2i} \times TIME_{it} + \epsilon_{it}.
+\end{equation}
+
+```{r echo=TRUE}
+fm16.3 <- update(fm16.2, random = ~1 + time | subject, data = armd)
+```
+
+```{r, results='hide'}
+fm16.3$call
+```
+
+```{r}
+fm16.3_sum = summary(fm16.3)
+fm16.3_int = intervals(fm16.3, which = "var-cov")
+```
+
+A continuación, vemos la fórmula utilizada, y en la Tabla \@ref(tab:tM163fix) los coeficientes y estadísticos estimados para los efectos fijos del modelo M16.3.
+
+```{r}
+formula(fm16.3)
+```
+
+```{r, results='hide'}
+fm16.3_sum_T = printCoefmat(fm16.3_sum$tTable,has.Pvalue = TRUE, P.values = TRUE)
+```
+
+```{r tM163fix}
+kable(fm16.3_sum_T, booktabs = T, caption = "Ensayo ARMD: Coeficientes y estadísticos de los efectos fijos del modelo M16.3.")
+```
+
+Efectos aleatorios:
+```{r}
+fm16.3_sum$modelStruct$reStruct
+```
+
+```{r}
+fm16.3_sum = summary(fm16.3)
+fm16.3_int = intervals(fm16.3, which = "var-cov")
+#Log-REML value
+fm16.3_loglik = round(fm16.3_sum$logLik,2)
+#Fixed effects
+fm16.3_b_0 = paste0(round(fm16.3_sum$tTable[1],2),"(",round(fm16.3_sum$tTable[6],2),")")
+fm16.3_b_1 = paste0(round(fm16.3_sum$tTable[2],2),"(",round(fm16.3_sum$tTable[7],2),")")
+fm16.3_b_2 = paste0(round(fm16.3_sum$tTable[3],2),"(",round(fm16.3_sum$tTable[8],2),")")
+fm16.3_b_3 = paste0(round(fm16.3_sum$tTable[4],2),"(",round(fm16.3_sum$tTable[9],2),")")
+fm16.3_b_4 = paste0(round(fm16.3_sum$tTable[5],2),"(",round(fm16.3_sum$tTable[10],2),")")
+#standar deviation sqrt(d11) of random intercept
+fm16.3_SD_bi0 = round(as.numeric(VarCorr(fm16.3)[1,2]),2) #d11
+fm16.3_SD_bi1= round(as.numeric(VarCorr(fm16.3)[2,2]),2) #d22
+fm16.3_SD_q12= round(as.numeric(VarCorr(fm16.3)[2,3]),2) #cor Q12
+#Variance function
+fm16.3_varfun = paste0(round(fm16.3_int$varStruct[[2]],2),"(",
+                       round(fm16.3_int$varStruct[[1]],2),",",
+                       round(fm16.3_int$varStruct[[3]],2),")")
+#scale
+fm16.3_scale = paste0(round(fm16.3_int$sigma[[2]],2),"(",
+                      round(fm16.3_int$sigma[[1]],2),",",
+                      round(fm16.3_int$sigma[[3]],2),")")
+
+```
+
+* MODELO M16.4
+
+Construimos este modelo basándonos en [@AndrzejGalecki2013] en base al modelo M16.3 (ver Ecuación \eqref{eq:eqM163}), pero asumiendo que los interceptos $b_{0i}$ y las pendientes aleatorias $b_{1i}$ tienen varianzas diferentes y son no correlacionadas: 
+
+\begin{equation}\label{eq:eq164D}
+  \mathscr{D}= 
+  \left(\begin{array}{cc} 
+  d_{11} & 0\\ 
+  0 & d_{22}
+  \end{array}\right)
+\end{equation}
+
+
+```{r echo=TRUE}
+fm16.4 <- update(fm16.3, random = list(subject = pdDiag(~time)), data = armd)
+```
+
+```{r, results='hide'}
+fm16.4$call
+```
+
+```{r}
+fm16.4_sum = summary(fm16.4)
+fm16.4_int = intervals(fm16.4, which = "var-cov")
+```
+
+Efectos fijos: Fórmula
+```{r}
+formula(fm16.4)
+```
+
+A continuación vemos la fórmula utilizada y en la Tabla \@ref(tab:tM164fix) los coeficientes y estadísticos estimados para los efectos fijos del modelo M16.4.
+
+```{r, results='hide'}
+fm16.4_sum_T = printCoefmat(fm16.4_sum$tTable,has.Pvalue = TRUE, P.values = TRUE)
+```
+
+```{r tM164fix}
+kable(fm16.4_sum_T, booktabs = T, caption = "Ensayo ARMD: Coeficientes y estadísticos de los efectos fijos del modelo M16.4.")
+```
+
+Efectos aleatorios:
+```{r}
+fm16.4_sum$modelStruct$reStruct
+```
+
+
+```{r}
+fm16.4_sum = summary(fm16.4)
+fm16.4_int = intervals(fm16.4, which = "var-cov")
+#Log-REML value
+fm16.4_loglik = round(fm16.4_sum$logLik,2)
+#Fixed effects
+fm16.4_b_0 = paste0(round(fm16.4_sum$tTable[1],2),"(",round(fm16.4_sum$tTable[6],2),")")
+fm16.4_b_1 = paste0(round(fm16.4_sum$tTable[2],2),"(",round(fm16.4_sum$tTable[7],2),")")
+fm16.4_b_2 = paste0(round(fm16.4_sum$tTable[3],2),"(",round(fm16.4_sum$tTable[8],2),")")
+fm16.4_b_3 = paste0(round(fm16.4_sum$tTable[4],2),"(",round(fm16.4_sum$tTable[9],2),")")
+fm16.4_b_4 = paste0(round(fm16.4_sum$tTable[5],2),"(",round(fm16.4_sum$tTable[10],2),")")
+#standar deviation sqrt(d11) of random intercept
+fm16.4_SD_bi0 = round(as.numeric(VarCorr(fm16.4)[1,2]),2) #d11
+fm16.4_SD_bi1 = round(as.numeric(VarCorr(fm16.4)[2,2]),2) #d22
+fm16.4_SD_q12 = "" #cor Q12
+#Variance function
+fm16.4_varfun = paste0(round(fm16.4_int$varStruct[[2]],2),"(",
+                       round(fm16.4_int$varStruct[[1]],2),",",
+                       round(fm16.4_int$varStruct[[3]],2),")")
+#scale
+fm16.4_scale = paste0(round(fm16.4_int$sigma[[2]],2),"(",
+                      round(fm16.4_int$sigma[[1]],2),",",
+                      round(fm16.4_int$sigma[[3]],2),")")
+
+```
+
+Evaluamos los modelo M16.3 y M16.4 utilizando el criterio de Akaike y vemos que el modelo M16.4 resulta mejor. Este modelo lo habíamos especificado para que su matriz varianza-covarianza, $\mathscr{D}$ de los interceptos y pendientes aleatorias tuviese forma diagonal.
+
+Ahora aplicamos la función de ANOVA a los modelos M16.4 (nulo) y M16.3 (alternativa), y usando el test LR basado REML verificaremos la hipótesis nula de que en la matriz varianza-covarianza, $\mathscr{D}$ definida en la Ecuación \eqref{eq:eq164D} el elemento $d_{12} = 0$.
+
+```{r echo=TRUE}
+anova.res43 = anova(fm16.4, fm16.3) 
+```
+
+
+```{r}
+t_anova.res43 = data.frame(cbind(round(anova.res43$Model,4),
+                              round(anova.res43$df,4),
+                              round(anova.res43$AIC,4),
+                              round(anova.res43$BIC,4),
+                              round(anova.res43$logLik,4),
+                              anova.res43$Test,
+                              round(anova.res43$L.Ratio,4),
+                              round(anova.res43$`p-value`,4)))
+colnames(t_anova.res43) = c("Model","df","AIC","BIC","logLik","Test","L.Ratio","p-value")
+```
+
+```{r tM164anova}
+kable(t_anova.res43, booktabs = T, caption = "Ensayo ARMD: Testeo de la hipótesis nula para el modelo M16.4 y M16.3.")
+```
+
+Según vemos en la Tabla \@ref(tab:tM164anova), a un 5% de nivel de significancia, podemos decir que el resultado no es estadísticamente significativo. Por tanto, se puede concluir que asumiendo una estructura diagonal de la  matriz varianza-covarianza , $\mathscr{D}$ (ver Ecuación \eqref{eq:eq164D}) más simple no se obtiene un ajuste peor del modelo. Este resultado está alineado con el resultado obtenido en el AIC (ver Tabla \@ref(tab:tM164anova)), donde el modelo M16.4 obtiene un valor inferior, y por tanto es mejor que el modelo M16.3.
+
+```{r, results='hide', tM164aic}
+aic_34 <- AIC(fm16.3,fm16.4)
+kable(aic_34, booktabs = T, caption = "Ensayo ARMD: Valores de AIC para los modelos M16.4 y M16.3")
+```
+
+* MODELO M16.5
+
+Este modelo lo construimos partiendo del modelo M16.4, pero para simplificar la parte fija quitamos la interacción entre las covariantes `TREAT` x  `TIME`. Cabe resaltar, que esta interacción había salido no significativa en los resultados obtenidos de los efectos fijos de los modelos analizados.
+
+El resto de elementos, la matriz de varianzas-covarianzas, $\mathscr{D}$ (ver Ecuación \eqref{eq:eq164D}) se mantienen igual que en el modelo M16.4 [@AndrzejGalecki2013].
+
+\begin{equation}\label{eq:eqAhr}
+  VISUAL_{it} = \beta_{0} + \beta_{1} \times VISUAL0_{i} + \beta_{2} \times TIME_{it} + \beta_{3} \times TREAT_{i} + b_{0i} + b_{2i} \times TIME_{it} + \epsilon_{it}.
+\end{equation}
+
+```{r echo=TRUE}
+lm3.form <- formula(visual ~ visual0 + time + treat.f)
+fm16.5 <- update(fm16.4, lm3.form, data = armd)
+```
+
+```{r, results='hide'}
+fm16.5$call
+```
+
+```{r}
+fm16.5_sum = summary(fm16.5)
+fm16.5_int = intervals(fm16.5, which = "var-cov")
+```
+
+A continuación, vemos la fórmula utilizada, y en la Tabla \@ref(tab:tM165fix) los coeficientes y estadísticos estimados para los efectos fijos del modelo M16.5.
+
+```{r}
+formula(fm16.5)
+```
+
+```{r, results='hide'}
+fm16.5_sum_T = printCoefmat(fm16.5_sum$tTable,has.Pvalue = TRUE, P.values = TRUE)
+```
+
+```{r tM165fix}
+kable(fm16.5_sum_T, booktabs = T, caption = "Ensayo ARMD: Coeficientes y estadísticos de los efectos fijos del modelo M16.5.")
+```
+
+Efectos aleatorios:
+```{r}
+fm16.5_sum$modelStruct$reStruct
+```
+
+```{r}
+fm16.5_sum = summary(fm16.5)
+fm16.5_int = intervals(fm16.5, which = "var-cov")
+#Log-REML value
+fm16.5_loglik = round(fm16.5_sum$logLik,2)
+#Fixed effects
+fm16.5_b_0 = paste0(round(fm16.5_sum$tTable[1],2),"(",round(fm16.5_sum$tTable[6],2),")")
+fm16.5_b_1 = paste0(round(fm16.5_sum$tTable[2],2),"(",round(fm16.5_sum$tTable[7],2),")")
+fm16.5_b_2 = paste0(round(fm16.5_sum$tTable[3],2),"(",round(fm16.5_sum$tTable[8],2),")")
+fm16.5_b_3 = paste0(round(fm16.5_sum$tTable[4],2),"(",round(fm16.5_sum$tTable[9],2),")")
+fm16.5_b_4 = ""
+#standar deviation sqrt(d11) of random intercept
+fm16.5_SD_bi0 = round(as.numeric(VarCorr(fm16.5)[1,2]),2) #d11
+fm16.5_SD_bi1 = round(as.numeric(VarCorr(fm16.5)[2,2]),2) #d22
+fm16.5_SD_q12 = "" #cor Q12
+#Variance function
+fm16.5_varfun = paste0(round(fm16.5_int$varStruct[[2]],2),"(",
+                       round(fm16.5_int$varStruct[[1]],2),",",
+                       round(fm16.5_int$varStruct[[3]],2),")")
+#scale
+fm16.5_scale = paste0(round(fm16.5_int$sigma[[2]],2),"(",
+                      round(fm16.5_int$sigma[[1]],2),",",
+                      round(fm16.5_int$sigma[[3]],2),")")
+
+```
+
+* MODELO M16.6
+
+Este modelo lo construimos partiendo del modelo M16.3 (ver Ecuación \eqref{eq:eqM163}), con la misma estructura  de efectos aleatorios, pero con una modificación sobre la matriz $\mathscr{R}$:
+
+\begin{equation}\label{eq:eqAhr}
+  \mathscr{R}_{i}=  \sigma^2
+  \left(\begin{array}{cccc} 
+  \delta_{1}^2 & 0 & 0 & 0\\ 
+  0 & \delta_{2}^2 & 0 & 0\\ 
+  0 & 0 & \delta_{3}^2 & 0\\
+  0 & 0 & 0 & \delta_{4}^2
+  \end{array}\right)
+\end{equation}
+
+Donde $\delta_{t}\equiv\sigma_{t} / \sigma_{1} (t=1,..4)$ es el ratio entre la desviación estándar de la agudeza visual en una ocasión $t$ frente a la medición de la agudeza visual en la primera ocasión. Para poder introducir esa alternativa en `R` hacemos uso de la función de varianza de residuos, `varIdent()` como constructor de en el argumento de los pesos, `weights`  del función `lme()`.
+
+```{r echo=TRUE}
+fm16.6 <- update(fm16.3, weights = varIdent(form = ~1 | time.f))
+
+```
+
+```{r, results='hide'}
+fm16.6$call
+```
+
+```{r comment=""}
+fm16.6_sum = summary(fm16.6)
+fm16.6_int=""
+ tryCatch(
+   {
+    fm16.6_int = intervals(fm16.6, which = "var-cov")
+   },
+   error = function(e){
+      t1 = substring(e$message,1,55)
+      t2 = substring(e$message,56,120)
+      t3 = substring(e$message,121,135)
+      print(paste0(t1))
+      print(paste0(t2,t3))
+     },
+   finally = {
+      NULL
+   }
+ )
+```
+
+Como se puede apreciar en el mensaje anterior, al calcular el modelo M16.6, parece que ha habido un problema en la optimización del modelo y no ha convergido [@AndrzejGalecki2013]. Por tanto, no hemos obtenido los intervalos a partir del modelo correctamente.
+
+A continuación, vemos la fórmula utilizada, y en la Tabla \@ref(tab:tM166fix) los coeficientes y estadísticos estimados para los efectos fijos del modelo M16.6.
+ 
+```{r}
+formula(fm16.6)
+```
+
+```{r, results='hide'}
+fm16.6_sum_T = printCoefmat(fm16.6_sum$tTable,has.Pvalue = TRUE, P.values = TRUE)
+```
+
+```{r tM166fix}
+kable(fm16.6_sum_T, booktabs = T, caption = "Ensayo ARMD: Coeficientes y estadísticos de los efectos fijos del modelo M16.6.")
+```
+
+Efectos aleatorios:
+```{r}
+fm16.6_sum$modelStruct$reStruct
+```
+
+```{r}
+#Log-REML value
+fm16.6_loglik = round(fm16.6_sum$logLik,2)
+#Fixed effects
+fm16.6_b_0 = paste0(round(fm16.6_sum$tTable[1],2),"(",round(fm16.6_sum$tTable[6],2),")")
+fm16.6_b_1 = paste0(round(fm16.6_sum$tTable[2],2),"(",round(fm16.6_sum$tTable[7],2),")")
+fm16.6_b_2 = paste0(round(fm16.6_sum$tTable[3],2),"(",round(fm16.6_sum$tTable[8],2),")")
+fm16.6_b_3 = paste0(round(fm16.6_sum$tTable[4],2),"(",round(fm16.6_sum$tTable[9],2),")")
+fm16.6_b_4 = paste0(round(fm16.6_sum$tTable[5],2),"(",round(fm16.6_sum$tTable[10],2),")")
+#standar deviation sqrt(d11) of random intercept
+fm16.6_SD_bi0 = round(as.numeric(VarCorr(fm16.6)[1,2]),2) #d11
+fm16.6_SD_bi1 = round(as.numeric(VarCorr(fm16.6)[2,2]),2) #d22
+fm16.6_SD_q12 = "" #cor Q12
+#Variance function
+fm16.6_varfun = ""
+if(!is.null(fm16.1_int$varStruct)){
+  fm16.6_varfun = paste0(round(fm16.6_int$varStruct[[2]],2),"(",
+                         round(fm16.6_int$varStruct[[1]],2),",",
+                         round(fm16.6_int$varStruct[[3]],2),")")
+}
+#scale
+fm16.6_scale = ""
+if(!is.null(fm16.1_int$fm16.6_scale)){
+  fm16.6_scale = paste0(round(fm16.6_int$sigma[[2]],2),"(",
+                        round(fm16.6_int$sigma[[1]],2),",",
+                        round(fm16.6_int$sigma[[3]],2),")")
+}
+
+```
+
+```{r}
+anova.res36 <- anova(fm16.3, fm16.6) # varPower (M16.3) ⊂ varIdent (M16.6)
+
+t_anova.res36 = data.frame(cbind(anova.res36$Model,
+                              anova.res36$df,
+                              round(anova.res36$AIC,4),
+                              round(anova.res36$BIC,4),
+                              round(anova.res36$logLik,4),
+                              anova.res36$Test,
+                              round(anova.res36$L.Ratio,4),
+                              round(anova.res36$`p-value`,4)))
+colnames(t_anova.res36) = c("Model","df","AIC","BIC","logLik","Test","L.Ratio","p-value")
+```
+
+A continuación, queremos comparar `varPower` (M16.3) $\subset$ al `varIdent` (M16.6) (ver Tabla \@ref(tab:tAnova36)). Vemos que en el modelo M16.3 al añadirse una restricción en forma de estructura varianza-covarianza marginal, se limita el espacio de parámetros y permite hallar una solución óptima [@AndrzejGalecki2013].
+
+```{r tAnova36}
+kable(t_anova.res36, booktabs = T, caption = "Ensayo ARMD: Test LR basado en REML para la función de varianza.")
+```
+
+* MODELO M16.7
+
+Este modelo lo construimos partiendo del modelo M16.4, pero considerando que los interceptos y pendientes aleatorias sujeto-específico son no correladas, y los residuos independientes y homocedásticos. Con una estructura de varianza-covarianza de los efectos aleatorios tal que:
+
+\begin{equation}\label{eq:eqAhrs}
+b_{i} \sim \mathscr{N}_{q}(0,\mathscr{D}), \text{  } \epsilon_{i} \sim \mathscr{N}_{ni}(0,\mathscr{R}_{i})
+\end{equation}
+
+y siendo:
+
+\begin{equation}\label{eq:eqAhd}
+  \mathscr{D}= 
+  \left(\begin{array}{cc} 
+  d_{11} & 0\\ 
+  0 & d_{22}
+  \end{array}\right)
+\end{equation}
+
+y 
+
+\begin{equation}\label{eq:eqAhR}
+  \mathscr{R}_i = \sigma^2 \times \mathscr{I}_{4}
+\end{equation}
+
+```{r echo=TRUE}
+fm16.7 <- update(fm16.4, weights = NULL, data = armd)
+```
+
+```{r, results='hide'}
+fm16.7$call
+```
+
+```{r}
+fm16.7_sum = summary(fm16.7)
+fm16.7_int = intervals(fm16.7, which = "var-cov")
+```
+
+A continuación, vemos la fórmula utilizada, y en la Tabla \@ref(tab:tM167fix) los coeficientes y estadísticos estimados para los efectos fijos del modelo M16.7.
+
+```{r}
+formula(fm16.7)
+```
+
+```{r, results='hide'}
+fm16.7_sum_T = printCoefmat(fm16.7_sum$tTable,has.Pvalue = TRUE, P.values = TRUE)
+```
+
+```{r tM167fix}
+kable(fm16.7_sum_T, booktabs = T, caption = "Ensayo ARMD: Coeficientes y estadísticos de los efectos fijos del modelo M16.7.")
+```
+
+Efectos aleatorios:
+```{r}
+fm16.7_sum$modelStruct$reStruct
+```
+
+```{r}
+fm16.7_sum = summary(fm16.7)
+fm16.7_int = intervals(fm16.7, which = "var-cov")
+#Log-REML value
+fm16.7_loglik = round(fm16.7_sum$logLik,2)
+#Fixed effects
+fm16.7_b_0 = paste0(round(fm16.7_sum$tTable[1],2),"(",round(fm16.7_sum$tTable[6],2),")")
+fm16.7_b_1 = paste0(round(fm16.7_sum$tTable[2],2),"(",round(fm16.7_sum$tTable[7],2),")")
+fm16.7_b_2 = paste0(round(fm16.7_sum$tTable[3],2),"(",round(fm16.7_sum$tTable[8],2),")")
+fm16.7_b_3 = paste0(round(fm16.7_sum$tTable[4],2),"(",round(fm16.7_sum$tTable[9],2),")")
+fm16.7_b_4 = paste0(round(fm16.7_sum$tTable[5],2),"(",round(fm16.7_sum$tTable[10],2),")")
+#standar deviation sqrt(d11) of random intercept
+fm16.7_SD_bi0 = round(as.numeric(VarCorr(fm16.7)[1,2]),2) #d11
+fm16.7_SD_bi1 = round(as.numeric(VarCorr(fm16.7)[2,2]),2) #d22
+fm16.7_SD_q12 = "" #cor Q12
+#Variance function
+fm16.7_varfun = ""
+if(!is.null(fm16.7_int$varStruct)){
+  fm16.7_varfun = paste0(round(fm16.7_int$varStruct[[2]],2),"(",
+                         round(fm16.7_int$varStruct[[1]],2),",",
+                         round(fm16.7_int$varStruct[[3]],2),")")  
+}
+#scale
+fm16.7_scale = paste0(round(fm16.7_int$sigma[[2]],2),"(",
+                      round(fm16.7_int$sigma[[1]],2),",",
+                      round(fm16.7_int$sigma[[3]],2),")")
+
+```
+
+# RESUTLADOS
+
+## Parámetros de los modelos
+
+```{r}
+
+fm16.1_T = rbind(fm16.1_loglik,fm16.1_b_0,fm16.1_b_1,fm16.1_b_2,fm16.1_b_3,fm16.1_b_4,
+                 fm16.1_SD_bi0,fm16.1_SD_bi1,fm16.1_SD_q12,fm16.1_varfun,fm16.1_scale)
+fm16.2_T = rbind(fm16.2_loglik,fm16.2_b_0,fm16.2_b_1,fm16.2_b_2,fm16.2_b_3,fm16.2_b_4,
+                 fm16.2_SD_bi0,fm16.2_SD_bi1,fm16.2_SD_q12,fm16.2_varfun,fm16.2_scale)
+fm16.3_T = rbind(fm16.3_loglik,fm16.3_b_0,fm16.3_b_1,fm16.3_b_2,fm16.3_b_3,fm16.3_b_4,
+                 fm16.3_SD_bi0,fm16.3_SD_bi1,fm16.3_SD_q12,fm16.3_varfun,fm16.3_scale)
+fm16.4_T = rbind(fm16.4_loglik,fm16.4_b_0,fm16.4_b_1,fm16.4_b_2,fm16.4_b_3,fm16.4_b_4,
+                 fm16.4_SD_bi0,fm16.4_SD_bi1,fm16.4_SD_q12,fm16.4_varfun,fm16.4_scale)
+fm16.5_T = rbind(fm16.5_loglik,fm16.5_b_0,fm16.5_b_1,fm16.5_b_2,fm16.5_b_3,fm16.5_b_4,
+                 fm16.5_SD_bi0,fm16.5_SD_bi1,fm16.5_SD_q12,fm16.5_varfun,fm16.5_scale)
+fm16.6_T = rbind(fm16.6_loglik,fm16.6_b_0,fm16.6_b_1,fm16.6_b_2,fm16.6_b_3,fm16.6_b_4,
+                 fm16.6_SD_bi0,fm16.6_SD_bi1,fm16.6_SD_q12,fm16.6_varfun,fm16.6_scale)
+fm16.7_T = rbind(fm16.7_loglik,fm16.7_b_0,fm16.7_b_1,fm16.7_b_2,fm16.7_b_3,fm16.7_b_4,
+                 fm16.7_SD_bi0,fm16.7_SD_bi1,fm16.7_SD_q12,fm16.7_varfun,fm16.7_scale)
+```
+
+```{r}
+Param <- c("loglik","beta_0","beta_1","beta_2","beta_3","beta_4","SD_bi0","SD_bi1","SD_q12","varfun","scale")
+fm16_all_T1 = data.frame(cbind(Param,fm16.1_T,fm16.2_T,fm16.3_T,fm16.4_T,fm16.5_T))
+colnames(fm16_all_T1) <- c("Param","fm16.1","fm16.2","fm16.3","fm16.4","fm16.5")
+rownames(fm16_all_T1) <- NULL
+r_effects_D = c("Rnd_effects_D","Interc.","Interc.","Interc., slp, corr.","Interc., slp, uncorr.","Interc., slp, uncorr.")
+r_var = c("Res. var.","Constant","varPower","varPower","varPower","varPower")
+mean = c("Mean","(12.8)","(12.8)","(12.8)","(12.8)","(12.9)")
+fm16_all_T1 <- rbind(fm16_all_T1,mean,r_effects_D,r_var)
+```
+
+En las Tablas \@ref(tab:tAllT1) y \@ref(tab:tAllT2) se pueden ver a modo de resumen las estimaciones basadas en REML para modelos estudiados: M16.1, M16.2, M16.3, M16.4, M16.5, M16.6, M16.7.
+
+```{r tAllT1}
+kable(fm16_all_T1, booktabs = T, caption = "Ensayo ARMD: Estimaciones basadas en REML para modelos: M16.1, M16.2, M16.3, M16.4, M16.5 de efectos mixtos con interceptos y pendientes de tiempo aleatorias.")
+```
+
+```{r}
+fm16_all_T2 = data.frame(cbind(Param,fm16.6_T,fm16.7_T))
+colnames(fm16_all_T2) <- c("Param","fm16.6","fm16.7")
+rownames(fm16_all_T2) <- NULL
+r_effects_D = c("Rnd_effects_D","Interc., slp, corr.","Interc., slp, uncorr.")
+r_var = c("Res. var.","varIdent","Constant")
+mean = c("Mean","(12.8)","(12.8)")
+fm16_all_T2 <- rbind(fm16_all_T2,mean,r_effects_D,r_var)
+```
+
+```{r tAllT2}
+kable(fm16_all_T2, booktabs = T, caption = "Ensayo ARMD: Estimaciones basadas en REML para modelos: M16.6, M16.7 de efectos mixtos con interceptos y pendientes de tiempo aleatorias.")
+```
+
+
+
+## Gráficas de diagnóstico
+
+A continuación, en las Figuras: \@ref(fig:pM161res), \@ref(fig:pM162res), \@ref(fig:pM163res), \@ref(fig:pM164res), \@ref(fig:pM165res), \@ref(fig:pM167res) se pueden ver que los residuos de los modelos M16.1, M16.2, M16.3, M16.4, M16.5, M16.7 son similares. Los residuos del modelo M16.6, que tuvo problemas de optimización (ver Figura  \@ref(fig:pM166res))) parece que han colapsado, sobre todo la semana 52. En el Anexo \@ref(anexDiagsujespe), se puede ver las gráficas de los valores observados frente a predichos de la agudeza visual para cada modelo calculado.
+
+* MODELO M16.1
+
+```{r pM161res, fig.cap = "Ensayo ARMD: Gráficas de puntos y de cajas con los residuos condicionales de Pearson y Q-Q con los residuos condicionales de Pearson por tiempo para el modelo M16.1.", fig.width=5.8, fig.height=8.4}
+
+par(mfrow=c(1,3))
+p1 <- plot(fm16.1)
+p2 <- bwplot(resid(fm16.1, type = "p") ~ time.f | treat.f, pch ="|", data = armd)
+p3 <- qqnorm(fm16.1, ~resid(.) | time.f)
+grid.arrange(p1, p2, p3, nrow = 3)
+```
+
+* MODELO M16.2
+
+```{r pM162res, fig.cap = "Ensayo ARMD: Gráficas de puntos y de cajas con los residuos condicionales de Pearson y Q-Q con los residuos condicionales de Pearson por tiempo para el modelo M16.2.", fig.width=5.8, fig.height=8.8}
+
+par(mfrow=c(1,3))
+p1 <- plot(fm16.2)
+p2 <- bwplot(resid(fm16.2, type = "p") ~ time.f | treat.f, pch ="|", data = armd)
+p3 <- qqnorm(fm16.2, ~resid(.) | time.f)
+grid.arrange(p1, p2, p3, nrow = 3)
+```
+
+* MODELO M16.3
+
+```{r pM163res, fig.cap = "Ensayo ARMD: Gráficas de puntos y de cajas con los residuos condicionales de Pearson y Q-Q con los residuos condicionales de Pearson por tiempo para el modelo M16.3.", fig.width=5.8, fig.height=8.8}
+
+par(mfrow=c(1,3))
+p1 <- plot(fm16.3)
+p2 <- bwplot(resid(fm16.3, type = "p") ~ time.f | treat.f, pch ="|", data = armd)
+p3 <- qqnorm(fm16.3, ~resid(.) | time.f)
+grid.arrange(p1, p2, p3, nrow = 3)
+```
+
+* MODELO M16.4
+
+```{r pM164res, fig.cap = "Ensayo ARMD: Gráficas de puntos y de cajas con los residuos condicionales de Pearson y Q-Q con los residuos condicionales de Pearson por tiempo para el modelo M16.4.", fig.width=5.8, fig.height=8.8}
+
+par(mfrow=c(1,3))
+p1 <- plot(fm16.4)
+p2 <- bwplot(resid(fm16.4, type = "p") ~ time.f | treat.f, pch ="|", data = armd)
+p3 <- qqnorm(fm16.4, ~resid(.) | time.f)
+grid.arrange(p1, p2, p3, nrow = 3)
+```
+
+
+* MODELO M16.5
+
+```{r pM165res, fig.cap = "Ensayo ARMD: Gráficas de puntos y de cajas con los residuos condicionales de Pearson y Q-Q con los residuos condicionales de Pearson por tiempo para el modelo M16.5.", fig.width=5.8, fig.height=8.8}
+
+par(mfrow=c(1,3))
+p1 <- plot(fm16.5)
+p2 <- bwplot(resid(fm16.5, type = "p") ~ time.f | treat.f, pch ="|", data = armd)
+p3 <- qqnorm(fm16.5, ~resid(.) | time.f)
+grid.arrange(p1, p2, p3, nrow = 3)
+```
+
+
+* MODELO M16.6
+
+```{r pM166res, fig.cap = "Ensayo ARMD: Gráficas de puntos y de cajas con los residuos condicionales de Pearson y Q-Q con los residuos condicionales de Pearson por tiempo para el modelo M16.6.", fig.width=5.8, fig.height=8.8}
+
+par(mfrow=c(1,3))
+p1 <- plot(fm16.6)
+p2 <- bwplot(resid(fm16.6, type = "p") ~ time.f | treat.f, pch ="|", data = armd)
+p3 <- qqnorm(fm16.6, ~resid(.) | time.f)
+grid.arrange(p1, p2, p3, nrow = 3)
+```
+
+
+* MODELO M16.7
+
+```{r pM167res, fig.cap = "Ensayo ARMD: Gráficas de puntos y de cajas con los residuos condicionales de Pearson y Q-Q con los residuos condicionales de Pearson por tiempo para el modelo M16.7.", fig.width=5.8, fig.height=8.8}
+
+#par(mfrow=c(1,3))
+p1 <- plot(fm16.7)
+p2 <- bwplot(resid(fm16.7, type = "p") ~ time.f | treat.f, pch ="|", data = armd)
+p3 <- qqnorm(fm16.7, ~resid(.) | time.f)
+grid.arrange(p1, p2, p3, nrow = 3)
+```
+
+
+# TESTEO
+
+No debemos de comparar aleatorias mediante máxima verosimilitud ML porque los estimadores de los términos de varianza estarían sesgados [@Zuuretal2009]. Debido a ello, tenemos que usar la máxima verosimilitud restringida REML (máxima verosimilitud restringida), y comparar modelos anidados con ANOVA. No obstante, obtener los parámetros `p-valor` es complicado debido al problema de **testing on the boundary** [@Zuuretal2009],[@AndrzejGalecki2013].
+
+Estas limitaciones mencionadas hace complicado conocer si la inclusión de partes aleatorios mejora o no el ajuste sobre el modelo de manera significativa. Por ejemplo, entre el modelo M16.2 frente al M16.3 (M16.2 con pendientes aleatorias). Para solventar dichas limitaciones en posteriores apartados usaremos funciones de simulación para realizar el test de hipótesis sobre la estructura de efectos aleatorio con los valores de los parámetros en los límites del espacio de parámetros.
+
+## Comparación entre modelos
+
+Para la evaluación del modelo, podemos utilizar el criterio de Akaike (AIC), que tiene en cuenta tanto el ajuste del modelo como la complejidad del mismo. Cuanto menor sea el AIC mejor será el ajuste. El AIC, permite comparar varios modelos que no necesariamente tienen que estar anidados.
+
+A continuación, utilizamos AIC para la comparación y ver cual de los modelos tiene el mejor ajuste:
+
+```{r echo=TRUE}
+t_aic = AIC(fm16.1, fm16.2, fm16.3, fm16.4, fm16.5)
+```
+
+```{r tALLaic}
+kable(t_aic, booktabs = T, caption = "Ensayo ARMD: Valores de AIC para los modelos M16.1-M16.5.")
+```
+
+En la Tabla \@ref(tab:tALLaic) vemos que entre los modelo M16.1-M16.5, el modelo que ha obtenido el menor valor es el M16.5, por lo que podemos concluir que el modelo que mejor ajuste global tiene sobre los datos es este modelo.
+
+## Test de la hipótesis de los efectos aleatorios
+
+### Test para interceptos aleatorios
+
+En esta apartado consideraremos el modelo M16.1 que contiene intercepto aleatorio, y lo testearemos frente a un nuevo modelo que asume homocedasticidad en los errores residuales y sin efectos aleatorios. Por tanto, el modelo alternativo será el M16.1.
+
+* Test del ratio de semejanza o LR test
+
+Primero, crearemos un nuevo modelo, el que consideraremos nulo para este test, el cual no incluye ningún intercepto aleatorio y tiene la misma estructura de media que el modelo alternativo M16.1.
+
+```{r echo=TRUE}
+vis.gls1a <- gls(lm2.form, data = armd)
+```
+
+Después, realizaremos un test de ANOVA, donde según la hipótesis nula el modelo `vis.gls1a` será el modelo nulo y el modelo M16.1 la alternativa. 
+
+```{r echo=TRUE}
+anova.res11 <- anova(vis.gls1a, fm16.1)
+```
+
+```{r}
+t_anova.res11 = data.frame(cbind(anova.res11$Model,
+                              anova.res11$df,
+                              round(anova.res11$AIC,4),
+                              round(anova.res11$BIC,4),
+                              round(anova.res11$logLik,4),
+                              anova.res11$Test,
+                              round(anova.res11$L.Ratio,4),
+                              round(anova.res11$`p-value`,4)))
+colnames(t_anova.res11) = c("Model","df","AIC","BIC","logLik","Test","L.Ratio","p-value")
+```
+
+```{r tAnovares11}
+kable(t_anova.res11, booktabs = T, caption = "Ensayo ARMD: Resultados del L.Ratio tras realizar el ANOVA entre el modelo nulo, vis.gls1a y la alternativa, M16.1.")
+```
+
+Después, utilizando la distribución nula como una mezcla de $0.5\chi_{0}^2+0.5\chi_{1}^2$, es decir usando el 50% y 50% de las distribuciones $\chi_1^2$ y $\chi_2^2$, calcularemos el `p-valor` (ver Tabla \@ref(tab:tAnovares11)).
+
+```{r}
+p_valor = (anova.res11[["p-value"]][2])/2
+```
+
+El `p-valor` = `r p_valor` indica claramente que el resultado del test es significativo, por lo que permite rechazar la hipótesis nula de que la varianza de la distribución de los interceptos aleatorios es 0.
+
+* La función exactRLRT()
+
+A continuación, calculamos con la función `exactRLRT()` para simular la distribución empírica nula del LR test o test del ratio de semejanza.
+
+```{r}
+library(RLRsim)
+```
+
+```{r echo=TRUE}
+p_valor = exactRLRT(fm16.1)
+```
+
+Según indica el `p-valor` = `r p_valor$p.value` ajustado que hemos obtenido podemos decir que el resultado del test es estadísticamente significativo, y por tanto, el test nos induce a afirmar que podemos rechazar la hipótesis nula de que asume homocedasticidad en los errores residuales y sin efectos aleatorios.
+
+### Test para Pendientes aleatorias
+
+En este apartado estudiaremos si las pendientes aleatorios son o no necesarias en el modelo M16.7. Como hemos visto anteriormente el modelo M16.7, es una modificación del modelo M16.4, que asume varianza residual constante. Es decir, es un modelo con interceptos y pendientes aleatorios "subject-specific" no correlacionados, y errores residuales homocedasticos.
+
+* Test del ratio de semejanza o LR test
+
+Primero realizaremos un test de ANOVA, donde según la hipótesis nula el modelo M16.1 será el modelo nulo y el modelo M16.7 la alternativa. Después, para hallar el `p-valor` calcularemos las probabilidades de cola de las distribuciones $\chi^2$ con 1 y 2 grados de libertad.
+
+```{r echo=TRUE}
+anova.res17 <- anova(fm16.1, fm16.7)
+```
+
+```{r}
+t_anova.res17 = data.frame(cbind(anova.res17$Model,
+                              anova.res17$df,
+                              round(anova.res17$AIC,4),
+                              round(anova.res17$BIC,4),
+                              round(anova.res17$logLik,4),
+                              anova.res17$Test,
+                              round(anova.res17$L.Ratio,4),
+                              round(anova.res17$`p-value`,4)))
+colnames(t_anova.res17) = c("Model","df","AIC","BIC","logLik","Test","L.Ratio","p-value")
+```
+
+```{r tAnovares17}
+kable(t_anova.res17, booktabs = T, caption = "Ensayo ARMD: Resultados del L.Ratio tras realizar el ANOVA entre el modelo nulo, M16.1 y la alternativa, M16.7.")
+```
+
+
+Utilizando la distribución nula como $0.5\chi_{1}^2+0.5\chi_{2}^2$, es decir usando el 50% y 50% de las distribuciones $\chi_1^2$ y $\chi_2^2$, calcularemos el `p-valor` (ver Tabla \@ref(tab:tAnovares17)).
+
+```{r echo=TRUE}
+RLRT <- anova.res17[["L.Ratio"]][2]
+p_value = .5 * pchisq(RLRT, 1, lower.tail = FALSE) + .5 * pchisq(RLRT, 2, lower.tail = FALSE)
+```
+
+Según indica el `p-valor` es `r p_value` ajustado que hemos obtenido podemos decir que el resultado del test es estadísticamente significativo, y por tanto, el test nos induce a afirmar que podemos rechazar la hipótesis nula de que la varianza de las pendientes aleatorias es igual a 0.
+
+* La función exactRLRT()
+
+A continuación, calculamos con la función `exactRLRT()` para simular la distribución nula. Consideramos el modelo M16.1 nulo frente a la alternativa el modelo M16.7.
+
+```{r echo=TRUE}
+mAux <- update(fm16.1, random = ~0 + time|subject, data = armd)
+p_valor = exactRLRT(m = mAux, m0 = fm16.1, mA = fm16.7)
+```
+
+Tras 10.000 valores simulados, vemos que el `p-valor` es `r p_valor$p.value`, por lo que podemos concluir que la hipótesis nula puede ser rechazada.
+ 
+
+* La función simulate()
+
+A continuación, utilizando la función `simulate()` simulamos la distribución nula, y consideramos el modelo  M16.1 nulo frente a la alternativa el modelo M16.7 y obtendremos un gráfico con los `p-valores` nominales y empíricos. 
+
+```{r echo=TRUE, eval = FALSE}
+vis.lme2.sim <- simulate(fm16.1, m2 = fm16.7, nsim = 10000)
+```
+
+```{r eval = FALSE}
+fpCols_f <- grepl("vis.lme2.sim", ls())
+numericPreds <- ls()[fpCols_f]
+save(list = numericPreds, file="simul.rds")
+```
+
+```{r}
+load("simul.rds")
+```
+
+
+Los resultados empíricos de las simulación realizada lo vemos en la Figura \@ref(fig:pSim167). 
+A partir de esta figura se puede ver que valores nominales de los `p-valores` obtenidos utilizando $\chi_{1}^2,\chi_{2}^2$ o una combinación al $50\%-50\%$ de las distribuciones $\chi_{1}^2$ y $\chi_{2}^2$ son mayores que los correspondientes valores simulados, lo cual implica que utilizar cualquiera de estas distribuciones resultaría ser un test conservador.
+
+```{r pSim167, fig.cap = "Ensayo ARMD: Resultados empíricos y nominales de los p-valores para el testeo de la necesidad las pendientes aleatorias en el modelo M16.7. Una fila para la estimación REML y otra para ML.",  fig.width=6, fig.height=5}
+
+plot(vis.lme2.sim, df = c(1, 2),abline = c(0,1, lty=2))
+```
+
+## Resumen y conclusiones
+
+Resumen de la fórmula de los modelos expuestos en el presente documento:
+
+* M16.1: `r fm16.1$call`
+
+  con interceptos aleatorios y varianzas homocedasticas de los residuos.
+
+* M16.2: `r fm16.2$call`
+
+  con interceptos aleatorios y varianzas de los residuos descritas por una función de varianzas como potencia de la variable tiempo.
+  
+* M16.3: `r fm16.3$call`
+
+  con interceptos y pendientes aleatorias correlacionadas y varianzas de los residuos descritas por una función de varianzas como potencia de la variable tiempo.
+
+* M16.4: `r fm16.4$call`
+
+  con interceptos y pendientes aleatorias independientes y varianzas de los residuos descritas por una función de varianzas como potencia de la variable tiempo.
+
+* M16.5: `r fm16.5$call`
+
+  con misma estructura aleatoria que M16.4, eliminando la interacción entre las covariantes `TREAT` x  `TIME` se adopta un efecto del tratamiento constante.
+
+* M16.6: `r fm16.6$call`
+
+  con interceptos y pendientes aleatorias correlacionadas y varianzas de los residuos descritas por una función de varianzas tiempo-específicas.
+
+* M16.7: `r fm16.7$call`
+
+  con interceptos y pendientes aleatorias no correlacionadas y errores residuales independientes y homocedásticos.
+
+Siguiendo el guión del libro [@AndrzejGalecki2013] vemos que el modelo final con el mejor ajuste es el M16.5. No obstante, con la intención de explorar nuevos modelos que se puedan ajustar mejor, presentamos a continuación una modificación respecto a los modelos visto hasta ahora.
+
+Para construir el nuevo modelo M16.8, partimos de un modelo en cuanto a los efectos fijos similar al M16.5 (también sin interacción entre las covariantes `TREAT` x  `TIME`), pero cambiamos la variable `tiempo` (continua), por la variable `time.f` (factor). En cuanto a los efectos aleatorios, definimos interceptos y pendientes aleatorias independientes y varianzas de los residuos descritas por una función de varianzas como potencia de la variable tiempo, igual que en el modelo M16.5.
+
+
+```{r echo=TRUE}
+lm8.form <- formula(visual ~ visual0 + treat.f + time.f)
+fm16.8 <-lme(lm8.form, weights = varPower(form = ~ time), 
+             random = list(subject = pdDiag(~time)), data = armd)
+```
+
+* M16.8: `r fm16.8$call`
+
+A continuación, utilizamos AIC para la comparación y ver cual de los modelos tiene el mejor ajuste:
+
+
+```{r echo=TRUE}
+t_aicc = AIC(fm16.1, fm16.2, fm16.3, fm16.4, fm16.5, fm16.8)
+```
+
+
+```{r tALLaicc}
+kable(t_aicc, booktabs = T, caption = "Ensayo ARMD: Valores de AIC para los modelos M16.1-M16.5 y M16.8.")
+```
+En la Tabla \@ref(tab:tALLaicc) vemos que comparando con los modelo M16.1-M16.5, el nuevo modelo M16.8 ha obtenido menor valor, por lo que podemos decir que es el modelo que mejor ajuste global tiene sobre los datos. Sin embargo, queda como ejercicio futuro el estudiar más a fondo sus residuos así como ver sus valores observados frente a los predichos. 
+
+# Anexos
+
+En este apartado incluimos un enlace a github (repositorio web de código), para poder consultar el código `R` utilizado en el presente trabajo. https://github.com/azenzano/SurvivalAnalysis.git (last version: 2022/06/25)
+
+
+## Diagnostico sujeto-especifico {#anexDiagsujespe}
+ 
+
+```{r}
+aug.Pred16.1 <-  augPred(fm16.1, primary = ~time, level = 0:1, length.out = 2)
+aug.Pred16.2 <-  augPred(fm16.2, primary = ~time, level = 0:1, length.out = 2)
+aug.Pred16.3 <-  augPred(fm16.3, primary = ~time, level = 0:1, length.out = 2)
+aug.Pred16.4 <-  augPred(fm16.4, primary = ~time, level = 0:1, length.out = 2)
+aug.Pred16.5 <-  augPred(fm16.5, primary = ~time, level = 0:1, length.out = 2)
+aug.Pred16.6 <-  augPred(fm16.6, primary = ~time, level = 0:1, length.out = 2)
+aug.Pred16.7 <-  augPred(fm16.7, primary = ~time, level = 0:1, length.out = 2)
+```
+
+* MODELO M16.1
+
+```{r pM161pred, fig.cap = "Ensayo ARMD: Gráficas de predicciones sujeto-específico (12 individuos) para el modelo M16.1.", fig.width=7, fig.height=3.7}
+p1 <- plot(aug.Pred16.1, layout = c(4, 3, 1), key = list(lines = list(lty = c(1,2)),
+     text = list(c("Marginal", "Subject-specific")), columns = 2))
+p1
+```
+
+* MODELO M16.2
+
+```{r pM162pred, fig.cap = "Ensayo ARMD: Gráficas de predicciones sujeto-específico (12 individuos) para el modelo M16.2.", fig.width=7, fig.height=3.7}
+p2 <- plot(aug.Pred16.2, layout = c(4, 3, 1), key = list(lines = list(lty = c(1,2)),
+     text = list(c("Marginal", "Subject-specific")), columns = 2))
+p2
+```
+
+* MODELO M16.3
+
+```{r pM163pred, fig.cap = "Ensayo ARMD: Gráficas de predicciones sujeto-específico (12 individuos) para el modelo M16.3.", fig.width=7, fig.height=3.7}
+p3 <- plot(aug.Pred16.3, layout = c(4, 3, 1), key = list(lines = list(lty = c(1,2)),
+     text = list(c("Marginal", "Subject-specific")), columns = 2))
+p3
+```
+
+* MODELO M16.4
+
+```{r pM164pred, fig.cap = "Ensayo ARMD: Gráficas de predicciones sujeto-específico (12 individuos) para el modelo M16.4.", fig.width=7, fig.height=3.7}
+p4 <- plot(aug.Pred16.4, layout = c(4, 3, 1), key = list(lines = list(lty = c(1,2)),
+     text = list(c("Marginal", "Subject-specific")), columns = 2))
+p4
+```
+
+* MODELO M16.5
+
+```{r pM165pred, fig.cap = "Ensayo ARMD: Gráficas de predicciones sujeto-específico (12 individuos) para el modelo M16.5.", fig.width=7, fig.height=3.7}
+p5 <- plot(aug.Pred16.5, layout = c(4, 3, 1), key = list(lines = list(lty = c(1,2)),
+     text = list(c("Marginal", "Subject-specific")), columns = 2))
+p5
+```
+
+* MODELO M16.6
+
+```{r pM166pred, fig.cap = "Ensayo ARMD: Gráficas de predicciones sujeto-específico (12 individuos) para el modelo M16.6.", fig.width=7, fig.height=3.7}
+p6 <- plot(aug.Pred16.6, layout = c(4, 3, 1), key = list(lines = list(lty = c(1,2)),
+     text = list(c("Marginal", "Subject-specific")), columns = 2))
+p6
+```
+
+* MODELO M16.7
+
+```{r pM167pred, fig.cap = "Ensayo ARMD: Gráficas de predicciones sujeto-específico (12 individuos) para el modelo M16.7.", fig.width=7, fig.height=3.7}
+p7 <- plot(aug.Pred16.7, layout = c(4, 3, 1), key = list(lines = list(lty = c(1,2)),
+     text = list(c("Marginal", "Subject-specific")), columns = 2))
+p7
+```
+
+
+
+
+
+
+
+
+# References
+
+\mbox{~}
+
+
+
+
